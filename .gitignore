@@ -70,6 +70,9 @@ tools/docker/geth-testnet/data-geth1/
 
 .history/
 .manual-geth-artillery-config.yaml
+<<<<<<< HEAD
 packages/cactus-plugin-satp-hermes/.config
 
 packages/cactus-plugin-ledger-connector-fabric/src/test/typescript/fixtures/go/asset-transfer-private-data/chaincode-go/chaincode-go
+=======
+>>>>>>> 6d07c68f6 (chore(satp-hermes): delete Kotlin SDK, add Go SDK)
