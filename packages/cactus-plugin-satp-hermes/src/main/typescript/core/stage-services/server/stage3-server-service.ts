@@ -5,6 +5,7 @@ import {
   CommitFinalAssertionRequestMessage,
   CommitPreparationRequestMessage,
   CommitReadyResponseMessage,
+  TransferCompleteRequestMessage,
 } from "../../../generated/proto/cacti/satp/v02/stage_3_pb";
 import { SATP_VERSION } from "../../constants";
 import {
@@ -80,6 +81,16 @@ export class Stage3ServerService {
     commitReadyMessage.mintAssertionClaimsFormat =
       sessionData.mintAssertionClaimsFormat;
 
+    if (sessionData.transferContextId != undefined) {
+      commitReadyMessage.common.transferContextId =
+        sessionData.transferContextId;
+    }
+
+    if (sessionData.serverTransferNumber != undefined) {
+      commitReadyMessage.serverTransferNumber =
+        sessionData.serverTransferNumber;
+    }
+
     const messageSignature = bufArray2HexStr(
       sign(gateway.gatewaySigner, JSON.stringify(commitReadyMessage)),
     );
@@ -144,8 +155,21 @@ export class Stage3ServerService {
 
     commitFinalAcknowledgementReceiptResponseMessage.assignmentAssertionClaim =
       sessionData.assignmentAssertionClaim;
-    commitFinalAcknowledgementReceiptResponseMessage.assignmentAssertionClaimFormat =
-      sessionData.assignmentAssertionClaimFormat;
+
+    if (sessionData.assignmentAssertionClaimFormat != undefined) {
+      commitFinalAcknowledgementReceiptResponseMessage.assignmentAssertionClaimFormat =
+        sessionData.assignmentAssertionClaimFormat;
+    }
+
+    if (sessionData.transferContextId != undefined) {
+      commitFinalAcknowledgementReceiptResponseMessage.common.transferContextId =
+        sessionData.transferContextId;
+    }
+
+    if (sessionData.serverTransferNumber != undefined) {
+      commitFinalAcknowledgementReceiptResponseMessage.serverTransferNumber =
+        sessionData.serverTransferNumber;
+    }
 
     const messageSignature = bufArray2HexStr(
       sign(
@@ -240,6 +264,23 @@ export class Stage3ServerService {
       throw new Error(`${fnTag}, message signature verification failed`);
     }
 
+    if (
+      sessionData.transferContextId != undefined &&
+      request.common.transferContextId != sessionData.transferContextId
+    ) {
+      throw new Error(`${fnTag}, transferContextId does not match`);
+    }
+
+    if (
+      sessionData.clientTransferNumber != undefined &&
+      request.clientTransferNumber != sessionData.clientTransferNumber
+    ) {
+      // This does not throw an error because the clientTransferNumber is only meaningful to the client.
+      this.log.info(
+        `${fnTag}, LockAssertionRequest clientTransferNumber does not match the one that was sent`,
+      );
+    }
+
     this.log.info(`CommitPreparationRequestMessage passed all checks.`);
 
     return sessionData;
@@ -313,11 +354,35 @@ export class Stage3ServerService {
       throw new Error(`${fnTag}, message signature verification failed`);
     }
 
+    if (
+      sessionData.transferContextId != undefined &&
+      request.common.transferContextId != sessionData.transferContextId
+    ) {
+      throw new Error(`${fnTag}, transferContextId does not match`);
+    }
+    //todo check burn
     if (request.burnAssertionClaim == undefined) {
       throw new Error(`${fnTag}, mintAssertionClaims is missing`);
     }
 
-    //todo check burn
+    sessionData.burnAssertionClaim = request.burnAssertionClaim;
+
+    if (request.burnAssertionClaimFormat != undefined) {
+      this.log.info(
+        `${fnTag}, optional variable loaded: burnAssertionClaimFormat`,
+      );
+      sessionData.burnAssertionClaimFormat = request.burnAssertionClaimFormat;
+    }
+
+    if (
+      sessionData.clientTransferNumber != undefined &&
+      request.clientTransferNumber != sessionData.clientTransferNumber
+    ) {
+      // This does not throw an error because the clientTransferNumber is only meaningful to the client.
+      this.log.info(
+        `${fnTag}, CommitFinalAssertionRequest clientTransferNumber does not match the one that was sent`,
+      );
+    }
 
     this.log.info(`CommitFinalAssertionRequestMessage passed all checks.`);
 
@@ -325,7 +390,7 @@ export class Stage3ServerService {
   }
 
   async checkTransferCompleteRequestMessage(
-    request: CommitFinalAssertionRequestMessage,
+    request: TransferCompleteRequestMessage,
     gateway: SATPGateway,
   ): Promise<SessionData> {
     const fnTag = `${this.className}#checkTransferCompleteRequestMessage()`;
@@ -378,6 +443,13 @@ export class Stage3ServerService {
       throw new Error(`${fnTag}, hashPreviousMessage does not match`);
     }
 
+    if (
+      getMessageHash(sessionData, MessageType.TRANSFER_COMMENCE_REQUEST) !=
+      request.hashTransferCommence
+    ) {
+      throw new Error(`${fnTag}, hashTransferCommence does not match`);
+    }
+
     if (sessionData.clientGatewayPubkey != request.common.clientGatewayPubkey) {
       throw new Error(`${fnTag}, clientGatewayPubkey does not match`);
     }
@@ -399,6 +471,23 @@ export class Stage3ServerService {
     this.log.info(
       `${fnTag}, TransferCompleteRequestMessage passed all checks.`,
     );
+
+    if (
+      sessionData.transferContextId != undefined &&
+      request.common.transferContextId != sessionData.transferContextId
+    ) {
+      throw new Error(`${fnTag}, transferContextId does not match`);
+    }
+
+    if (
+      sessionData.clientTransferNumber != undefined &&
+      request.clientTransferNumber != sessionData.clientTransferNumber
+    ) {
+      // This does not throw an error because the clientTransferNumber is only meaningful to the client.
+      this.log.info(
+        `${fnTag}, TransferCompleteRequest clientTransferNumber does not match the one that was sent`,
+      );
+    }
 
     return sessionData;
   }

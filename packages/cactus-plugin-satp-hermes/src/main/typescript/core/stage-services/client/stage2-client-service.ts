@@ -77,6 +77,15 @@ export class Stage2ClientService {
     lockAssertionRequestMessage.lockAssertionFormat =
       sessionData.lockAssertionFormat;
 
+    if (sessionData.transferContextId != undefined) {
+      lockAssertionRequestMessage.common.transferContextId =
+        sessionData.transferContextId;
+    }
+    if (sessionData.clientTransferNumber != undefined) {
+      lockAssertionRequestMessage.clientTransferNumber =
+        sessionData.clientTransferNumber;
+    }
+
     const messageSignature = bufArray2HexStr(
       sign(gateway.gatewaySigner, JSON.stringify(lockAssertionRequestMessage)),
     );
@@ -114,15 +123,12 @@ export class Stage2ClientService {
       response.common.version == undefined ||
       response.common.messageType == undefined ||
       response.common.sessionId == undefined ||
-      // request.common.transferContextId == undefined ||
       response.common.sequenceNumber == undefined ||
       response.common.resourceUrl == undefined ||
-      // request.common.actionResponse == undefined ||
-      // request.common.payloadProfile == undefined ||
-      // request.common.applicationProfile == undefined ||
       response.common.signature == undefined ||
       response.common.clientGatewayPubkey == undefined ||
-      response.common.serverGatewayPubkey == undefined
+      response.common.serverGatewayPubkey == undefined ||
+      response.common.hashPreviousMessage == undefined
     ) {
       throw new Error(
         `${fnTag}, message satp common body is missing or is missing required fields`,
@@ -198,6 +204,22 @@ export class Stage2ClientService {
       throw new Error(
         `${fnTag}, TransferCommenceResponse previous message hash does not match the one that was sent`,
       );
+    }
+
+    if (
+      sessionData.transferContextId != undefined &&
+      response.common.transferContextId != sessionData.transferContextId
+    ) {
+      throw new Error(
+        `${fnTag}, transferContextId does not match the one that was sent`,
+      );
+    }
+
+    if (response.serverTransferNumber != undefined) {
+      this.log.info(
+        `${fnTag}, Optional variable loaded: serverTransferNumber...`,
+      );
+      sessionData.serverTransferNumber = response.serverTransferNumber;
     }
 
     this.log.info(`TransferCommenceResponse passed all checks.`);

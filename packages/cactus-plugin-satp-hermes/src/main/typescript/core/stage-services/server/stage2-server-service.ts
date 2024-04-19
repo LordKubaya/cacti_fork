@@ -73,6 +73,16 @@ export class Stage2ServerService {
     const lockAssertionReceiptMessage = new LockAssertionReceiptMessage();
     lockAssertionReceiptMessage.common = commonBody;
 
+    if (sessionData.transferContextId != undefined) {
+      lockAssertionReceiptMessage.common.transferContextId =
+        sessionData.transferContextId;
+    }
+
+    if (sessionData.serverTransferNumber != undefined) {
+      lockAssertionReceiptMessage.serverTransferNumber =
+        sessionData.serverTransferNumber;
+    }
+
     const messageSignature = bufArray2HexStr(
       sign(gateway.gatewaySigner, JSON.stringify(lockAssertionReceiptMessage)),
     );
@@ -110,15 +120,12 @@ export class Stage2ServerService {
       request.common.version == undefined ||
       request.common.messageType == undefined ||
       request.common.sessionId == undefined ||
-      // request.common.transferContextId == undefined ||
       request.common.sequenceNumber == undefined ||
       request.common.resourceUrl == undefined ||
-      // request.common.actionrequest == undefined ||
-      // request.common.payloadProfile == undefined ||
-      // request.common.applicationProfile == undefined ||
       request.common.signature == undefined ||
       request.common.clientGatewayPubkey == undefined ||
-      request.common.serverGatewayPubkey == undefined
+      request.common.serverGatewayPubkey == undefined ||
+      request.common.hashPreviousMessage == undefined
     ) {
       throw new Error(
         `${fnTag}, message satp common body is missing or is missing required fields`,
@@ -190,12 +197,46 @@ export class Stage2ServerService {
       );
     }
 
+    if (request.lockAssertionClaim == undefined) {
+      throw new Error(
+        `${fnTag}, LockAssertionRequest lockAssertionClaim is missing`,
+      );
+    }
+
+    sessionData.lockAssertionClaim = request.lockAssertionClaim;
+
+    if (request.lockAssertionFormat == undefined) {
+      throw new Error(
+        `${fnTag},  LockAssertionRequest lockAssertionFormat is missing`,
+      );
+    }
+
+    sessionData.lockAssertionFormat = request.lockAssertionFormat;
+
+    if (request.lockAssertionExpiration == undefined) {
+      throw new Error(
+        `${fnTag}, LockAssertionRequest lockAssertionExpiration is missing`,
+      );
+    }
+
+    sessionData.lockAssertionExpiration = request.lockAssertionExpiration; //todo check if expired
+
     if (
-      request.lockAssertionFormat == undefined ||
-      request.lockAssertionClaim == undefined
+      sessionData.transferContextId != undefined &&
+      request.common.transferContextId != sessionData.transferContextId
     ) {
       throw new Error(
-        `${fnTag},  LockAssertionRequest lockAssertionFormat or lockAssertionClaim is missing`,
+        `${fnTag}, LockAssertionRequest transferContextId does not match the one that was sent`,
+      );
+    }
+
+    if (
+      sessionData.clientTransferNumber != undefined &&
+      request.clientTransferNumber != sessionData.clientTransferNumber
+    ) {
+      // This does not throw an error because the clientTransferNumber is only meaningful to the client.
+      this.log.info(
+        `${fnTag}, LockAssertionRequest clientTransferNumber does not match the one that was sent`,
       );
     }
 

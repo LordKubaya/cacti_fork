@@ -25,6 +25,7 @@ import {
   saveSignature,
   checkSessionData,
 } from "../../session-utils";
+import { ACCEPTANCE } from "../../../generated/proto/cacti/satp/v02/common/session_pb";
 
 export class Stage1ClientService {
   public static readonly CLASS_NAME = "Stage1Service-Client";
@@ -203,7 +204,7 @@ export class Stage1ClientService {
   ): Promise<void | TransferCommenceRequestMessage> {
     const fnTag = `${this.className}#transferCommenceRequest()`;
 
-    if (!response || !response.common) {
+    if (response.common == undefined) {
       throw new Error("Response or response.common is undefined");
     }
 
@@ -218,11 +219,17 @@ export class Stage1ClientService {
     commonBody.messageType = MessageType.TRANSFER_COMMENCE_REQUEST;
     commonBody.sequenceNumber = response.common.sequenceNumber + BigInt(1);
 
-    //todo check when reject
-    commonBody.hashPreviousMessage = getMessageHash(
-      sessionData,
-      MessageType.INIT_RECEIPT,
-    );
+    if (sessionData.acceptance == ACCEPTANCE.ACCEPTANCE_ACCEPTED) {
+      commonBody.hashPreviousMessage = getMessageHash(
+        sessionData,
+        MessageType.INIT_RECEIPT,
+      );
+    } else if (sessionData.acceptance == ACCEPTANCE.ACCEPTANCE_CONDITIONAL) {
+      commonBody.hashPreviousMessage = getMessageHash(
+        sessionData,
+        MessageType.INIT_REJECT,
+      );
+    }
 
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
@@ -235,7 +242,15 @@ export class Stage1ClientService {
     transferCommenceRequestMessage.hashTransferInitClaims =
       sessionData.hashTransferInitClaims;
 
-    // transferCommenceRequestMessage.clientTransferNumber = sessionData.clientTransferNumber;
+    if (sessionData.transferContextId != undefined) {
+      transferCommenceRequestMessage.common.transferContextId =
+        sessionData.transferContextId;
+    }
+
+    if (sessionData.clientTransferNumber != undefined) {
+      transferCommenceRequestMessage.clientTransferNumber =
+        sessionData.clientTransferNumber;
+    }
 
     const messageSignature = bufArray2HexStr(
       sign(
@@ -363,6 +378,15 @@ export class Stage1ClientService {
     ) {
       throw new Error(
         `${fnTag}, TransferProposalReceipt message signature verification failed`,
+      );
+    }
+
+    if (
+      sessionData.transferContextId != undefined &&
+      response.common.transferContextId != sessionData.transferContextId
+    ) {
+      throw new Error(
+        `${fnTag}, TransferProposalReceipt transferContextId mismatch or not received`,
       );
     }
 
