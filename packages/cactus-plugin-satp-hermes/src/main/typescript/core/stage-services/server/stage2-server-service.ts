@@ -57,8 +57,6 @@ export class Stage2ServerService extends SATPService {
       );
     }
 
-    saveHash(sessionData, MessageType.LOCK_ASSERT, getHash(request));
-
     const commonBody = new CommonSatp();
     commonBody.version = SATP_VERSION;
     commonBody.messageType = MessageType.ASSERTION_RECEIPT;
@@ -242,6 +240,8 @@ export class Stage2ServerService extends SATPService {
         `${fnTag}, LockAssertionRequest clientTransferNumber does not match the one that was sent`,
       );
     }
+
+    saveHash(sessionData, MessageType.LOCK_ASSERT, getHash(request));
 
     this.Log.info(`${fnTag}, LockAssertionRequest passed all checks.`);
     return sessionData;
