@@ -8,7 +8,8 @@ import {
   MessageType,
   CommonSatp,
 } from "../../../generated/proto/cacti/satp/v02/common/message_pb";
-import { SessionData } from "../../../generated/proto/cacti/satp/v02/common/session_pb";
+// eslint-disable-next-line prettier/prettier
+import { ACCEPTANCE, SessionData } from "../../../generated/proto/cacti/satp/v02/common/session_pb";
 import { SATP_VERSION } from "../../constants";
 import {
   bufArray2HexStr,
@@ -32,7 +33,6 @@ import {
   ISATPServerServiceOptions,
   ISATPServiceOptions,
 } from "../satp-service";
-
 export class Stage1ServerService extends SATPService {
   public static readonly SATP_STAGE = "1";
   public static readonly SERVICE_TYPE = SATPServiceType.Server;
@@ -71,19 +71,13 @@ export class Stage1ServerService extends SATPService {
     if (session == undefined) {
       throw new Error(`${fnTag}, session is undefined`);
     }
-    const sessionData = session.getSessionData();
+    const sessionData = session.getServerSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
         `${fnTag}, session data not found for session id ${request.common.sessionId}`,
       );
     }
-
-    saveSignature(
-      sessionData,
-      MessageType.INIT_PROPOSAL,
-      request.common.signature,
-    );
 
     sessionData.sourceLedgerAssetId =
       request.transferInitClaims.verifiedOriginatorEntityId;
@@ -92,18 +86,17 @@ export class Stage1ServerService extends SATPService {
 
     sessionData.hashTransferInitClaims = getHash(request.transferInitClaims);
 
-    saveHash(sessionData, MessageType.INIT_PROPOSAL, getHash(request));
-
-    sessionData.lastSequenceNumber = request.common.sequenceNumber + BigInt(1);
-
     const commonBody = new CommonSatp();
     commonBody.version = sessionData.version;
 
     commonBody.sessionId = sessionData.id;
-    commonBody.sequenceNumber = request.common.sequenceNumber + BigInt(1);
+    sessionData.lastSequenceNumber = commonBody.sequenceNumber =
+      request.common.sequenceNumber + BigInt(1);
     commonBody.resourceUrl = request.common.resourceUrl;
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
+    commonBody.transferContextId = sessionData.transferContextId;
+
     commonBody.hashPreviousMessage = getMessageHash(
       sessionData,
       MessageType.INIT_PROPOSAL,
@@ -119,6 +112,7 @@ export class Stage1ServerService extends SATPService {
       TimestampType.RECEIVED,
     );
 
+    //TODO implement reject
     /*
     if (reject) {
       commonBody.messageType = MessageType.INIT_REJECT;
@@ -139,12 +133,14 @@ export class Stage1ServerService extends SATPService {
       sessionData.acceptance = ACCEPTANCE.ACCEPTANCE_ACCEPTED;
     }
     */
+    commonBody.messageType = MessageType.INIT_RECEIPT;
+    sessionData.acceptance = ACCEPTANCE.ACCEPTANCE_ACCEPTED;
 
     const messageSignature = bufArray2HexStr(
       sign(this.Signer, JSON.stringify(transferProposalReceiptMessage)),
     );
 
-    transferProposalReceiptMessage.common.signature = messageSignature;
+    transferProposalReceiptMessage.serverSignature = messageSignature;
 
     saveSignature(sessionData, commonBody.messageType, messageSignature);
 
@@ -185,7 +181,7 @@ export class Stage1ServerService extends SATPService {
     if (session == undefined) {
       throw new Error(`${fnTag}, session is undefined`);
     }
-    const sessionData = session.getSessionData();
+    const sessionData = session.getServerSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -193,16 +189,11 @@ export class Stage1ServerService extends SATPService {
       );
     }
 
-    saveHash(
-      sessionData,
-      MessageType.TRANSFER_COMMENCE_REQUEST,
-      getHash(request),
-    );
-
     const commonBody = new CommonSatp();
     commonBody.version = sessionData.version;
     commonBody.messageType = MessageType.TRANSFER_COMMENCE_RESPONSE;
-    commonBody.sequenceNumber = sessionData.lastSequenceNumber + BigInt(1);
+    sessionData.lastSequenceNumber = commonBody.sequenceNumber =
+      request.common.sequenceNumber + BigInt(1);
     commonBody.hashPreviousMessage = getMessageHash(
       sessionData,
       MessageType.TRANSFER_COMMENCE_REQUEST,
@@ -211,18 +202,18 @@ export class Stage1ServerService extends SATPService {
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
     commonBody.sessionId = sessionData.id;
+    commonBody.resourceUrl = request.common.resourceUrl;
+    commonBody.transferContextId = sessionData.transferContextId;
 
     const transferCommenceResponseMessage =
       new TransferCommenceResponseMessage();
     transferCommenceResponseMessage.common = commonBody;
 
-    sessionData.lastSequenceNumber = commonBody.sequenceNumber;
-
     const messageSignature = bufArray2HexStr(
       sign(this.Signer, JSON.stringify(transferCommenceResponseMessage)),
     );
 
-    transferCommenceResponseMessage.common.signature = messageSignature;
+    transferCommenceResponseMessage.serverSignature = messageSignature;
 
     saveSignature(
       sessionData,
@@ -258,11 +249,10 @@ export class Stage1ServerService extends SATPService {
     const stepTag = `checkTransferProposalRequestMessage()`;
     const fnTag = `${this.getServiceIdentifier()}#${stepTag}`;
     this.Log.debug(`${fnTag}, checkTransferProposalRequestMessage...`);
-
     if (session == undefined) {
       throw new Error(`${fnTag}, session is undefined`);
     }
-    const sessionData = session.getSessionData();
+    const sessionData = session.getServerSessionData();
 
     if (request.common == undefined) {
       throw new Error(
@@ -287,7 +277,7 @@ export class Stage1ServerService extends SATPService {
       // request.common.actionResponse == undefined ||
       // request.common.payloadProfile == undefined ||
       // request.common.applicationProfile == undefined ||
-      request.common.signature == undefined ||
+      request.clientSignature == undefined ||
       request.common.clientGatewayPubkey == undefined ||
       request.common.serverGatewayPubkey == undefined
     ) {
@@ -301,11 +291,7 @@ export class Stage1ServerService extends SATPService {
     }
 
     if (
-      !verifySignature(
-        this.Signer,
-        request.common,
-        request.common.clientGatewayPubkey,
-      )
+      !verifySignature(this.Signer, request, request.common.clientGatewayPubkey)
     ) {
       throw new Error(
         `${fnTag}, TransferProposalRequest message signature verification failed`,
@@ -368,10 +354,16 @@ export class Stage1ServerService extends SATPService {
     sessionData.accessControlProfile =
       request.networkCapabilities.accessControlProfile;
 
-    this.Log.info(`Session data created for session id ${sessionData.id}`);
+    this.Log.info(
+      `${fnTag}, Session data created for session id ${sessionData.id}`,
+    );
     if (!this.checkTransferClaims(request.transferInitClaims)) {
       throw new Error();
     }
+    saveHash(sessionData, MessageType.INIT_PROPOSAL, getHash(request));
+
+    this.Log.info(`${fnTag}, TransferProposalRequest passed all checks.`);
+
     return sessionData;
   }
 
@@ -393,7 +385,7 @@ export class Stage1ServerService extends SATPService {
       // request.common.actionResponse == undefined ||
       // request.common.payloadProfile == undefined ||
       // request.common.applicationProfile == undefined ||
-      request.common.signature == undefined ||
+      request.clientSignature == undefined ||
       request.common.clientGatewayPubkey == undefined ||
       request.common.serverGatewayPubkey == undefined
     ) {
@@ -409,7 +401,7 @@ export class Stage1ServerService extends SATPService {
     if (session == undefined) {
       throw new Error(`${fnTag}, session is undefined`);
     }
-    const sessionData = session.getSessionData();
+    const sessionData = session.getServerSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -441,11 +433,7 @@ export class Stage1ServerService extends SATPService {
     }
 
     if (
-      !verifySignature(
-        this.Signer,
-        request.common,
-        request.common.clientGatewayPubkey,
-      )
+      !verifySignature(this.Signer, request, request.common.clientGatewayPubkey)
     ) {
       throw new Error(
         `${fnTag}, TransferCommenceRequest message signature verification failed`,
@@ -463,7 +451,7 @@ export class Stage1ServerService extends SATPService {
       sessionData.lastSequenceNumber + BigInt(1)
     ) {
       throw new Error(
-        `${fnTag}, TransferCommenceRequest Message sequence number is wrong`,
+        `${fnTag}, TransferCommenceRequest Message sequence number is wrong got: ${request.common.sequenceNumber} expected to be ${sessionData.lastSequenceNumber + BigInt(1)}`,
       );
     }
 
@@ -472,7 +460,7 @@ export class Stage1ServerService extends SATPService {
       sessionData.hashes.stage1.transferProposalReceiptMessageHash
     ) {
       throw new Error(
-        `${fnTag}, TransferCommenceRequest previous message hash does not match the one that was sent`,
+        `${fnTag}, TransferCommenceRequest previous message hash does not match the one that was sent \n received: ${request.common.hashPreviousMessage} \n expected: ${sessionData.hashes.stage1.transferProposalReceiptMessageHash}`,
       );
     }
 
@@ -509,7 +497,14 @@ export class Stage1ServerService extends SATPService {
       sessionData.clientTransferNumber = request.clientTransferNumber;
     }
 
+    saveHash(
+      sessionData,
+      MessageType.TRANSFER_COMMENCE_REQUEST,
+      getHash(request),
+    );
+
     this.Log.info(`${fnTag}, TransferCommenceRequest passed all checks.`);
+
     return sessionData;
   }
 

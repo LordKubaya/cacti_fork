@@ -328,9 +328,9 @@ export class SessionData extends Message<SessionData> {
   serverTransferNumber = "";
 
   /**
-   * @generated from field: string lock_assertion_expiration = 59;
+   * @generated from field: uint64 lock_assertion_expiration = 59;
    */
-  lockAssertionExpiration = "";
+  lockAssertionExpiration = protoInt64.zero;
 
   /**
    * @generated from field: cacti.satp.v02.common.AssetProfile asset_profile = 60;
@@ -403,7 +403,7 @@ export class SessionData extends Message<SessionData> {
     { no: 56, name: "transfer_claims_format", kind: "message", T: TransferClaimsFormat },
     { no: 57, name: "client_transfer_number", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 58, name: "server_transfer_number", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 59, name: "lock_assertion_expiration", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 59, name: "lock_assertion_expiration", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 60, name: "asset_profile", kind: "message", T: AssetProfile },
   ]);
 

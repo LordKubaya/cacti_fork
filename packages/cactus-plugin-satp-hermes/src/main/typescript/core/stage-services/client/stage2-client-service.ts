@@ -3,6 +3,7 @@ import { SATP_VERSION } from "../../constants";
 import {
   CommonSatp,
   LockAssertionClaim,
+  LockAssertionClaimFormat,
   MessageType,
 } from "../../../generated/proto/cacti/satp/v02/common/message_pb";
 import { LockAssertionRequestMessage } from "../../../generated/proto/cacti/satp/v02/stage_2_pb";
@@ -59,7 +60,7 @@ export class Stage2ClientService extends SATPService {
       throw new Error(`${fnTag}, message common body is missing`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -67,12 +68,10 @@ export class Stage2ClientService extends SATPService {
       );
     }
 
-    saveHash(sessionData, MessageType.COMMIT_READY, getHash(response));
-
     const commonBody = new CommonSatp();
     commonBody.version = sessionData.version;
     commonBody.messageType = MessageType.LOCK_ASSERT;
-    commonBody.sequenceNumber = sessionData.lastSequenceNumber + BigInt(1);
+    sessionData.lastSequenceNumber = commonBody.sequenceNumber =  response.common.sequenceNumber + BigInt(1);
 
     commonBody.hashPreviousMessage = getMessageHash(
       sessionData,
@@ -83,15 +82,22 @@ export class Stage2ClientService extends SATPService {
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
 
-    sessionData.lastSequenceNumber = commonBody.sequenceNumber;
-
     const lockAssertionRequestMessage = new LockAssertionRequestMessage();
     lockAssertionRequestMessage.common = commonBody;
+
+    if (sessionData.lockAssertionClaim == undefined) {
+      throw new Error(`${fnTag}, lockAssertionClaim is missing`);
+    }
+    if (sessionData.lockAssertionClaimFormat == undefined) {
+      throw new Error(`${fnTag}, lockAssertionClaimFormat is missing`);
+    }
 
     lockAssertionRequestMessage.lockAssertionClaim =
       sessionData.lockAssertionClaim;
     lockAssertionRequestMessage.lockAssertionClaimFormat =
       sessionData.lockAssertionClaimFormat;
+    lockAssertionRequestMessage.lockAssertionExpiration =
+      sessionData.lockAssertionExpiration;
 
     if (sessionData.transferContextId != undefined) {
       lockAssertionRequestMessage.common.transferContextId =
@@ -106,7 +112,7 @@ export class Stage2ClientService extends SATPService {
       sign(this.Signer, JSON.stringify(lockAssertionRequestMessage)),
     );
 
-    lockAssertionRequestMessage.common.signature = messageSignature;
+    lockAssertionRequestMessage.clientSignature = messageSignature;
 
     saveSignature(sessionData, MessageType.LOCK_ASSERT, messageSignature);
 
@@ -144,7 +150,7 @@ export class Stage2ClientService extends SATPService {
       response.common.sessionId == undefined ||
       response.common.sequenceNumber == undefined ||
       response.common.resourceUrl == undefined ||
-      response.common.signature == undefined ||
+      response.serverSignature == undefined ||
       response.common.clientGatewayPubkey == undefined ||
       response.common.serverGatewayPubkey == undefined ||
       response.common.hashPreviousMessage == undefined
@@ -158,7 +164,7 @@ export class Stage2ClientService extends SATPService {
       throw new Error(`${fnTag}, unsupported SATP version`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -192,7 +198,7 @@ export class Stage2ClientService extends SATPService {
     if (
       !verifySignature(
         this.Signer,
-        response.common,
+        response,
         response.common.serverGatewayPubkey,
       )
     ) {
@@ -212,16 +218,16 @@ export class Stage2ClientService extends SATPService {
       sessionData.lastSequenceNumber + BigInt(1)
     ) {
       throw new Error(
-        `${fnTag}, TransferCommenceResponse sequence number is wrong`,
+        `${fnTag}, TransferCommenceRequest Message sequence number is wrong \n received: ${response.common.sequenceNumber} \n expected: ${sessionData.lastSequenceNumber + BigInt(1)}`,
       );
     }
 
     if (
       response.common.hashPreviousMessage !=
-      getMessageHash(sessionData, MessageType.TRANSFER_COMMENCE_RESPONSE)
+      getMessageHash(sessionData, MessageType.TRANSFER_COMMENCE_REQUEST)
     ) {
       throw new Error(
-        `${fnTag}, TransferCommenceResponse previous message hash does not match the one that was sent`,
+        `${fnTag}, TransferCommenceResponse previous message hash does not match the one that was sent \n received: ${response.common.hashPreviousMessage} \n expected: ${getMessageHash(sessionData, MessageType.TRANSFER_COMMENCE_REQUEST)}`,
       );
     }
 
@@ -241,6 +247,12 @@ export class Stage2ClientService extends SATPService {
       sessionData.serverTransferNumber = response.serverTransferNumber;
     }
 
+    saveHash(
+      sessionData,
+      MessageType.TRANSFER_COMMENCE_RESPONSE,
+      getHash(response),
+    );
+
     this.Log.info(`${fnTag}, TransferCommenceResponse passed all checks.`);
   }
 
@@ -249,7 +261,10 @@ export class Stage2ClientService extends SATPService {
     const fnTag = `${this.getServiceIdentifier()}#${stepTag}`;
     try {
       this.Log.info(`${fnTag}, Locking Asset...`);
-      const sessionData = session.getSessionData();
+      const sessionData = session.getClientSessionData();
+      if (sessionData == undefined) {
+        throw new Error(`${fnTag}, Session data not found`);
+      }
       const assetId = sessionData.transferInitClaims?.digitalAssetId;
       const amount = sessionData.transferInitClaims?.amountFromOriginator;
 
@@ -267,6 +282,10 @@ export class Stage2ClientService extends SATPService {
       //   assetId,
       //   Number(amount),
       // );
+
+      // sessionData.lockAssertionClaimFormat = new LockAssertionClaimFormat();
+
+      // sessionData.lockAssertionExpiration = BigInt(99999999999);
 
       // sessionData.lockAssertionClaim.signature = bufArray2HexStr(
       //   sign(this.Signer, sessionData.lockAssertionClaim.receipt),

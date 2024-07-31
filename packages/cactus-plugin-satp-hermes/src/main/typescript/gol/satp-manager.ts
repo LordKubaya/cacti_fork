@@ -102,7 +102,7 @@ export class SATPManager {
     this.handlers = this.initializeHandlers(handlersClasses, handlersOptions);
 
     for (const handler of this.handlers) {
-      const sessionId = mockSession.getSessionData().id;
+      const sessionId = mockSession.getSessionId();
       const handlerMap = this.satpHandlers.get(sessionId);
       if (handlerMap == undefined) {
         this.satpHandlers.set(sessionId, new Map());
@@ -152,10 +152,14 @@ export class SATPManager {
     return this.supportedDLTs;
   }
 
-  public getSATPHandlers(
+  public getSATPHandler(
     sessionId: string,
   ): Map<string, SATPHandler> | undefined {
     return this.satpHandlers.get(sessionId);
+  }
+
+  public getHandlers(): SATPHandler[] {
+    return this.handlers;
   }
 
   public getOrCreateSession(
@@ -173,8 +177,12 @@ export class SATPManager {
   }
 
   private createNewSession(contextID: string): SATPSession {
-    const session = new SATPSession({ contextID: contextID });
-    this.sessions?.set(session.getSessionData().id, session);
+    const session = new SATPSession({
+      contextID: contextID,
+      server: true, //todo implement the separation of server and client
+      client: true,
+    });
+    this.sessions?.set(session.getSessionId(), session);
     return session;
   }
 
@@ -224,11 +232,13 @@ export class SATPManager {
     serviceClasses: (new (options: ISATPServiceOptions) => SATPService)[],
     level: LogLevelDesc = "DEBUG",
   ): SATPHandlerOptions[] {
+    const fnTag = `${SATPManager.CLASS_NAME}#initializeHandlerOptions()`;
+    this.logger.info(`${fnTag}, Initializing handlers options...`);
+
     const handlersOptions: SATPHandlerOptions[] = [];
-    const mockSession = this.getOrCreateSession();
 
     try {
-      for (let i = 0; i < serviceClasses.length / 2; i++) {
+      for (let i = 1; i <= serviceClasses.length / 2; i++) {
         const serverService = this.getServiceByStage(
           SATPServiceType.Server,
           i.toString(),
@@ -240,7 +250,7 @@ export class SATPManager {
         );
 
         const handlerOptions: SATPHandlerOptions = {
-          session: mockSession,
+          sessions: this.sessions,
           serverService: serverService,
           clientService: clientService,
           supportedDLTs: this.supportedDLTs,
@@ -259,6 +269,8 @@ export class SATPManager {
     handlersClasses: (new (options: SATPHandlerOptions) => SATPHandler)[],
     handlersOptions: SATPHandlerOptions[],
   ): SATPHandler[] {
+    const fnTag = `${SATPManager.CLASS_NAME}#initializeHandlers()`;
+    this.logger.info(`${fnTag}, Initializing handlers...`);
     const handlers: SATPHandler[] = [];
     if (handlersClasses.length === 0) {
       throw new Error("No handlers provided");
@@ -270,7 +282,8 @@ export class SATPManager {
 
     if (handlersClasses.length !== handlersOptions.length) {
       throw new Error(
-        "Number of handler classes and options do not match. Each handler class needs an options object.",
+        `Number of handler classes and options do not match. Each handler class needs an options object.\n \
+          Classes: ${handlersClasses.length}, Options: ${handlersOptions.length}`,
       );
     }
 

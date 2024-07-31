@@ -65,7 +65,7 @@ export class Stage3ClientService extends SATPService {
       throw new Error(`${fnTag}, message common body is missing`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -73,12 +73,11 @@ export class Stage3ClientService extends SATPService {
       );
     }
 
-    saveHash(sessionData, MessageType.ASSERTION_RECEIPT, getHash(response));
-
     const commonBody = new CommonSatp();
     commonBody.version = SATP_VERSION;
     commonBody.messageType = MessageType.COMMIT_PREPARE;
-    commonBody.sequenceNumber = sessionData.lastSequenceNumber + BigInt(1);
+    sessionData.lastSequenceNumber = commonBody.sequenceNumber =
+      response.common.sequenceNumber + BigInt(1);
     commonBody.hashPreviousMessage = getMessageHash(
       sessionData,
       MessageType.ASSERTION_RECEIPT,
@@ -86,8 +85,6 @@ export class Stage3ClientService extends SATPService {
     commonBody.sessionId = response.common.sessionId;
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
-
-    sessionData.lastSequenceNumber = commonBody.sequenceNumber;
 
     const commitPreparationRequestMessage =
       new CommitPreparationRequestMessage();
@@ -107,7 +104,7 @@ export class Stage3ClientService extends SATPService {
       sign(this.Signer, JSON.stringify(commitPreparationRequestMessage)),
     );
 
-    commitPreparationRequestMessage.common.signature = messageSignature;
+    commitPreparationRequestMessage.clientSignature = messageSignature;
 
     saveSignature(sessionData, MessageType.COMMIT_PREPARE, messageSignature);
 
@@ -143,7 +140,7 @@ export class Stage3ClientService extends SATPService {
       throw new Error(`${fnTag}, message common body is missing`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -151,13 +148,11 @@ export class Stage3ClientService extends SATPService {
       );
     }
 
-    saveHash(sessionData, MessageType.COMMIT_READY, getHash(response));
-
     const commonBody = new CommonSatp();
     commonBody.version = SATP_VERSION;
     commonBody.messageType = MessageType.COMMIT_FINAL;
-    commonBody.sequenceNumber = sessionData.lastSequenceNumber + BigInt(1);
-
+    sessionData.lastSequenceNumber = commonBody.sequenceNumber =
+      response.common.sequenceNumber + BigInt(1);
     commonBody.hashPreviousMessage = getMessageHash(
       sessionData,
       MessageType.COMMIT_READY,
@@ -167,11 +162,13 @@ export class Stage3ClientService extends SATPService {
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
 
-    sessionData.lastSequenceNumber = commonBody.sequenceNumber;
-
     const commitFinalAssertionRequestMessage =
       new CommitFinalAssertionRequestMessage();
     commitFinalAssertionRequestMessage.common = commonBody;
+
+    if (sessionData.burnAssertionClaim == undefined) {
+      throw new Error(`${fnTag}, mintAssertionClaimFormat is missing`);
+    }
 
     commitFinalAssertionRequestMessage.burnAssertionClaim =
       sessionData.burnAssertionClaim;
@@ -195,7 +192,7 @@ export class Stage3ClientService extends SATPService {
       sign(this.Signer, JSON.stringify(commitFinalAssertionRequestMessage)),
     );
 
-    commitFinalAssertionRequestMessage.common.signature = messageSignature;
+    commitFinalAssertionRequestMessage.clientSignature = messageSignature;
 
     saveSignature(sessionData, MessageType.COMMIT_FINAL, messageSignature);
 
@@ -230,7 +227,7 @@ export class Stage3ClientService extends SATPService {
       throw new Error(`${fnTag}, message common body is missing`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -238,12 +235,11 @@ export class Stage3ClientService extends SATPService {
       );
     }
 
-    saveHash(sessionData, MessageType.ACK_COMMIT_FINAL, getHash(response));
-
     const commonBody = new CommonSatp();
     commonBody.version = SATP_VERSION;
     commonBody.messageType = MessageType.COMMIT_TRANSFER_COMPLETE;
-    commonBody.sequenceNumber = sessionData.lastSequenceNumber + BigInt(1);
+    sessionData.lastSequenceNumber = commonBody.sequenceNumber =
+      response.common.sequenceNumber + BigInt(1);
 
     commonBody.hashPreviousMessage = getMessageHash(
       sessionData,
@@ -253,8 +249,6 @@ export class Stage3ClientService extends SATPService {
     commonBody.sessionId = response.common.sessionId;
     commonBody.clientGatewayPubkey = sessionData.clientGatewayPubkey;
     commonBody.serverGatewayPubkey = sessionData.serverGatewayPubkey;
-
-    sessionData.lastSequenceNumber = commonBody.sequenceNumber;
 
     const transferCompleteRequestMessage = new TransferCompleteRequestMessage();
     transferCompleteRequestMessage.common = commonBody;
@@ -278,7 +272,7 @@ export class Stage3ClientService extends SATPService {
       sign(this.Signer, JSON.stringify(transferCompleteRequestMessage)),
     );
 
-    transferCompleteRequestMessage.common.signature = messageSignature;
+    transferCompleteRequestMessage.clientSignature = messageSignature;
 
     saveSignature(
       sessionData,
@@ -326,7 +320,7 @@ export class Stage3ClientService extends SATPService {
       throw new Error(`${fnTag}, message type is not ASSERTION_RECEIPT`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -372,7 +366,7 @@ export class Stage3ClientService extends SATPService {
     if (
       !verifySignature(
         this.Signer,
-        response.common,
+        response,
         response.common.serverGatewayPubkey,
       )
     ) {
@@ -413,6 +407,8 @@ export class Stage3ClientService extends SATPService {
       );
     }
 
+    saveHash(sessionData, MessageType.ASSERTION_RECEIPT, getHash(response));
+
     this.Log.info(`${fnTag}, LockAssertionReceiptMessage passed all checks.`);
   }
 
@@ -436,7 +432,7 @@ export class Stage3ClientService extends SATPService {
       throw new Error(`${fnTag}, message type is not COMMIT_READY`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -482,7 +478,7 @@ export class Stage3ClientService extends SATPService {
     if (
       !verifySignature(
         this.Signer,
-        response.common,
+        response,
         response.common.serverGatewayPubkey,
       )
     ) {
@@ -521,6 +517,8 @@ export class Stage3ClientService extends SATPService {
       );
     }
 
+    saveHash(sessionData, MessageType.COMMIT_READY, getHash(response));
+
     this.Log.info(`${fnTag}, CommitReadyResponseMessage passed all checks.`);
   }
 
@@ -544,7 +542,7 @@ export class Stage3ClientService extends SATPService {
       throw new Error(`${fnTag}, message type is not ACK_COMMIT_FINAL`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getClientSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -590,7 +588,7 @@ export class Stage3ClientService extends SATPService {
     if (
       !verifySignature(
         this.Signer,
-        response.common,
+        response,
         response.common.serverGatewayPubkey,
       )
     ) {
@@ -628,6 +626,8 @@ export class Stage3ClientService extends SATPService {
       );
     }
 
+    saveHash(sessionData, MessageType.ACK_COMMIT_FINAL, getHash(response));
+
     this.Log.info(
       `${fnTag}, CommitFinalAcknowledgementReceiptResponseMessage passed all checks.`,
     );
@@ -638,7 +638,10 @@ export class Stage3ClientService extends SATPService {
     const fnTag = `${this.getServiceIdentifier()}#${stepTag}`;
     try {
       this.Log.debug(`${fnTag}, Burning Asset...`);
-      const sessionData = session.getSessionData();
+      const sessionData = session.getClientSessionData();
+      if (sessionData == undefined) {
+        throw new Error(`${fnTag}, Session data is missing`);
+      }
       const assetId = sessionData.transferInitClaims?.digitalAssetId;
       const amount = sessionData.transferInitClaims?.amountFromOriginator;
 

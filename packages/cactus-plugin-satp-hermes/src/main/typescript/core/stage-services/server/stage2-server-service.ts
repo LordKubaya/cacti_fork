@@ -49,7 +49,7 @@ export class Stage2ServerService extends SATPService {
       throw new Error(`${fnTag}, message common body is missing`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getServerSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -90,7 +90,7 @@ export class Stage2ServerService extends SATPService {
       sign(this.Signer, JSON.stringify(lockAssertionReceiptMessage)),
     );
 
-    lockAssertionReceiptMessage.common.signature = messageSignature;
+    lockAssertionReceiptMessage.serverSignature = messageSignature;
 
     saveSignature(sessionData, MessageType.ASSERTION_RECEIPT, messageSignature);
 
@@ -129,7 +129,7 @@ export class Stage2ServerService extends SATPService {
       request.common.sessionId == undefined ||
       request.common.sequenceNumber == undefined ||
       request.common.resourceUrl == undefined ||
-      request.common.signature == undefined ||
+      request.clientSignature == undefined ||
       request.common.clientGatewayPubkey == undefined ||
       request.common.serverGatewayPubkey == undefined ||
       request.common.hashPreviousMessage == undefined
@@ -143,7 +143,7 @@ export class Stage2ServerService extends SATPService {
       throw new Error(`${fnTag}, unsupported SATP version`);
     }
 
-    const sessionData = session.getSessionData();
+    const sessionData = session.getServerSessionData();
 
     if (sessionData == undefined) {
       throw new Error(
@@ -171,11 +171,7 @@ export class Stage2ServerService extends SATPService {
     }
 
     if (
-      !verifySignature(
-        this.Signer,
-        request.common,
-        request.common.serverGatewayPubkey,
-      )
+      !verifySignature(this.Signer, request, request.common.serverGatewayPubkey)
     ) {
       throw new Error(
         `${fnTag}, LockAssertionRequest message signature verification failed`,
@@ -191,7 +187,7 @@ export class Stage2ServerService extends SATPService {
       sessionData.lastSequenceNumber + BigInt(1)
     ) {
       throw new Error(
-        `${fnTag}, LockAssertionRequest Message sequence number is wrong`,
+        `${fnTag}, LockAssertionRequest Message sequence number is wrong \n received: ${request.common.sequenceNumber} \n expected: ${sessionData.lastSequenceNumber + BigInt(1)}`,
       );
     }
 
@@ -218,7 +214,7 @@ export class Stage2ServerService extends SATPService {
       );
     }
 
-    sessionData.lockAssertionClaimFormat = request.lockAssertionClaimFormat;
+    sessionData.lockAssertionClaimFormat = request.lockAssertionClaimFormat; //todo check if valid
 
     if (request.lockAssertionExpiration == undefined) {
       throw new Error(

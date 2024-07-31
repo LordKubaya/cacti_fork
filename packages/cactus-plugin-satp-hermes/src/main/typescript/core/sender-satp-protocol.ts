@@ -71,7 +71,7 @@ export class SenderSATPProtocol {
 
     const requestTransferProposal = await (
       satpHandlers.get("Stage1SATPHandler") as Stage1SATPHandler
-    ).TransferProposalRequest();
+    ).TransferProposalRequest(session.getSessionData().id);
 
     if (!requestTransferProposal) {
       throw new Error(`Failed to create TransferProposalRequest`);
