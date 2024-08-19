@@ -21,6 +21,8 @@ import {
 import { InteractionsRequest } from "../../../generated/SATPWrapperContract";
 import { getInteractionType } from "./types/asset";
 import { InteractionData } from "./types/interact";
+import { OntologyError } from "../../errors/bridge-erros";
+import { TransactionError } from "fabric-network";
 
 interface BesuResponse {
   success: boolean;
@@ -59,14 +61,13 @@ export class BesuBridge implements NetworkBridge {
   }
 
   public async wrapAsset(asset: BesuAsset): Promise<TransactionResponse> {
+    const fnTag = `${BesuBridge.CLASS_NAME}}#wrapAsset`;
     this.log.debug(
-      `${BesuBridge.CLASS_NAME}#wrapAsset Wrapping Asset: {${asset.tokenId}, ${asset.owner}, ${asset.contractAddress}, ${asset.tokenType}}`,
+      `${fnTag}, Wrapping Asset: {${asset.tokenId}, ${asset.owner}, ${asset.contractAddress}, ${asset.tokenType}}`,
     );
 
     if (asset.ontology === undefined) {
-      throw new Error(
-        `${BesuBridge.CLASS_NAME}#wrapAsset: Ontology is required to interact with tokens`,
-      );
+      throw new OntologyError(fnTag);
     }
 
     const interactions = this.interactionList(asset.ontology);
@@ -88,7 +89,7 @@ export class BesuBridge implements NetworkBridge {
     })) as BesuResponse;
 
     if (!response.success) {
-      throw new Error(`${BesuBridge.CLASS_NAME}#wrapAsset:Transaction failed`);
+      throw new TransactionError(fnTag);
     }
 
     return {
@@ -97,9 +98,8 @@ export class BesuBridge implements NetworkBridge {
     };
   }
   public async unwrapAsset(assetId: string): Promise<TransactionResponse> {
-    this.log.debug(
-      `${BesuBridge.CLASS_NAME}#UnwrapAsset Unwrapping Asset: ${assetId}`,
-    );
+    const fnTag = `${BesuBridge.CLASS_NAME}}#unwrapAsset`;
+    this.log.debug(`${fnTag}, Unwrapping Asset: ${assetId}`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -110,9 +110,7 @@ export class BesuBridge implements NetworkBridge {
       gas: this.config.gas,
     })) as BesuResponse;
     if (!response.success) {
-      throw new Error(
-        `${BesuBridge.CLASS_NAME}#unwrapAsset:Transaction failed`,
-      );
+      throw new TransactionError(fnTag);
     }
     return {
       transactionId: response.out.transactionReceipt.transactionHash ?? "",
@@ -123,9 +121,8 @@ export class BesuBridge implements NetworkBridge {
     assetId: string,
     amount: number,
   ): Promise<TransactionResponse> {
-    this.log.debug(
-      `${BesuBridge.CLASS_NAME}#lockAsset Locking Asset: ${assetId} amount: ${amount}`,
-    );
+    const fnTag = `${BesuBridge.CLASS_NAME}}#lockAsset`;
+    this.log.debug(`${fnTag}, Locking Asset: ${assetId} amount: ${amount}`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -136,7 +133,7 @@ export class BesuBridge implements NetworkBridge {
       gas: this.config.gas,
     })) as BesuResponse;
     if (!response.success) {
-      throw new Error(`${BesuBridge.CLASS_NAME}#lockAsset:Transaction failed}`);
+      throw new TransactionError(fnTag);
     }
     return {
       transactionId: response.out.transactionReceipt.transactionHash ?? "",
@@ -147,9 +144,8 @@ export class BesuBridge implements NetworkBridge {
     assetId: string,
     amount: number,
   ): Promise<TransactionResponse> {
-    this.log.debug(
-      `${BesuBridge.CLASS_NAME}#unlockAsset Unlocking Asset: ${assetId} amount: ${amount}`,
-    );
+    const fnTag = `${BesuBridge.CLASS_NAME}}#unlockAsset`;
+    this.log.debug(`${fnTag}, Unlocking Asset: ${assetId} amount: ${amount}`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -160,9 +156,7 @@ export class BesuBridge implements NetworkBridge {
       gas: this.config.gas,
     })) as BesuResponse;
     if (!response.success) {
-      throw new Error(
-        `${BesuBridge.CLASS_NAME}#unlockAsset:Transaction failed}`,
-      );
+      throw new TransactionError(fnTag);
     }
     return {
       transactionId: response.out.transactionReceipt.transactionHash ?? "",
@@ -173,9 +167,8 @@ export class BesuBridge implements NetworkBridge {
     assetId: string,
     amount: number,
   ): Promise<TransactionResponse> {
-    this.log.debug(
-      `${BesuBridge.CLASS_NAME}#mintAsset Minting Asset: ${assetId} amount: ${amount}`,
-    );
+    const fnTag = `${BesuBridge.CLASS_NAME}}#mintAsset`;
+    this.log.debug(`${fnTag}, Minting Asset: ${assetId} amount: ${amount}`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -186,7 +179,7 @@ export class BesuBridge implements NetworkBridge {
       gas: this.config.gas,
     })) as BesuResponse;
     if (!response.success) {
-      throw new Error(`${BesuBridge.CLASS_NAME}#mintAsset:Transaction failed}`);
+      throw new TransactionError(fnTag);
     }
     return {
       transactionId: response.out.transactionReceipt.transactionHash ?? "",
@@ -197,9 +190,8 @@ export class BesuBridge implements NetworkBridge {
     assetId: string,
     amount: number,
   ): Promise<TransactionResponse> {
-    this.log.debug(
-      `${BesuBridge.CLASS_NAME}#burnAsset Burning Asset: ${assetId} amount: ${amount}`,
-    );
+    const fnTag = `${BesuBridge.CLASS_NAME}}#burnAsset`;
+    this.log.debug(`${fnTag}, Burning Asset: ${assetId} amount: ${amount}`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -210,7 +202,7 @@ export class BesuBridge implements NetworkBridge {
       gas: this.config.gas,
     })) as BesuResponse;
     if (!response.success) {
-      throw new Error(`${BesuBridge.CLASS_NAME}#burnAsset:Transaction failed}`);
+      throw new TransactionError(fnTag);
     }
     return {
       transactionId: response.out.transactionReceipt.transactionHash ?? "",
@@ -222,8 +214,9 @@ export class BesuBridge implements NetworkBridge {
     to: string,
     amount: number,
   ): Promise<TransactionResponse> {
+    const fnTag = `${BesuBridge.CLASS_NAME}}#assignAsset`;
     this.log.debug(
-      `${BesuBridge.CLASS_NAME}#assignAsset Assigning Asset: ${assetId} amount: ${amount} to: ${to}`,
+      `${fnTag}, Assigning Asset: ${assetId} amount: ${amount} to: ${to}`,
     );
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
@@ -235,9 +228,7 @@ export class BesuBridge implements NetworkBridge {
       gas: this.config.gas,
     })) as BesuResponse;
     if (!response.success) {
-      throw new Error(
-        `${BesuBridge.CLASS_NAME}#assignAsset:Transaction failed}`,
-      );
+      throw new TransactionError(fnTag);
     }
     return {
       transactionId: response.out.transactionReceipt.transactionHash ?? "",
@@ -246,7 +237,8 @@ export class BesuBridge implements NetworkBridge {
   }
 
   public async getAssets(): Promise<string[]> {
-    this.log.debug(`${BesuBridge.CLASS_NAME}#getAssets Getting Assets`);
+    const fnTag = `${BesuBridge.CLASS_NAME}}#getAssets`;
+    this.log.debug(`${fnTag}, Getting Assets`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -258,14 +250,15 @@ export class BesuBridge implements NetworkBridge {
     })) as BesuResponse;
 
     if (!response.success) {
-      throw new Error(`${BesuBridge.CLASS_NAME}#getAssets: Transaction failed`);
+      throw new TransactionError(fnTag);
     }
 
     return response.callOutput as string[];
   }
 
   public async getAsset(assetId: string): Promise<BesuAsset> {
-    this.log.debug(`${BesuBridge.CLASS_NAME}#getAsset Getting Asset`);
+    const fnTag = `${BesuBridge.CLASS_NAME}}#getAsset`;
+    this.log.debug(`${fnTag}, Getting Asset`);
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -277,7 +270,7 @@ export class BesuBridge implements NetworkBridge {
     })) as BesuResponse;
 
     if (!response.success) {
-      throw new Error(`${BesuBridge.CLASS_NAME}#getAsset: Transaction failed`);
+      throw new TransactionError(fnTag);
     }
 
     return response.callOutput as BesuAsset;
@@ -292,7 +285,10 @@ export class BesuBridge implements NetworkBridge {
     params: string[],
     invocationType: EthContractInvocationType,
   ): Promise<TransactionResponse> {
-    this.log.debug(`Running Transaction: ${methodName}`);
+    const fnTag = `${BesuBridge.CLASS_NAME}}#runTransaction`;
+    this.log.debug(
+      `${fnTag}, Running Transaction: ${methodName} with params: ${params}`,
+    );
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -304,9 +300,7 @@ export class BesuBridge implements NetworkBridge {
     })) as BesuResponse;
 
     if (!response.success) {
-      throw new Error(
-        `${BesuBridge.CLASS_NAME}#runTransaction:Transaction failed}`,
-      );
+      throw new TransactionError(fnTag);
     }
 
     return {
@@ -320,8 +314,9 @@ export class BesuBridge implements NetworkBridge {
     assetId: string,
     transactionHash: string,
   ): Promise<string> {
+    const fnTag = `${BesuBridge.CLASS_NAME}}#getReceipt`;
     this.log.debug(
-      `Getting Receipt: ${assetId} transactionHash: ${transactionHash}`,
+      `${fnTag}, Getting Receipt: ${assetId} transactionHash: ${transactionHash}`,
     );
     //todo needs implementation
     const networkDetails = {
