@@ -25,7 +25,7 @@ import { SatpStage3Service } from "../generated/proto/cacti/satp/v02/stage_3_con
 export interface IGatewayOrchestratorOptions {
   logLevel?: LogLevelDesc;
   localGateway: GatewayIdentity;
-  counterPartyGateways: GatewayIdentity[] | undefined;
+  counterPartyGateways?: GatewayIdentity[];
   signer: JsObjectSigner;
 }
 
@@ -95,6 +95,10 @@ export class GatewayOrchestrator {
     } else {
       this.connectToCounterPartyGateways();
     }
+  }
+
+  public getCounterPartyGateway(id: string): GatewayIdentity | undefined {
+    return this.counterPartyGateways.get(id);
   }
 
   public getChannel(dlt: SupportedChain): GatewayChannel {

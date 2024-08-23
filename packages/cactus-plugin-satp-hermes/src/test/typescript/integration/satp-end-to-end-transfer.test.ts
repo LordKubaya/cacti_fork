@@ -61,6 +61,7 @@ import {
   SATPGateway,
   PluginFactorySATPGateway,
   TransactRequest,
+  Asset,
 } from "../../../main/typescript";
 import { SupportedChain } from "../../../main/typescript/core/types";
 import {
@@ -106,7 +107,7 @@ let testing_connector: PluginLedgerConnectorBesu;
 let besuKeyPair: { privateKey: string };
 let bridgeEthAccount: Account;
 let assigneeEthAccount: Account;
-const BESU_ASSET_ID = FABRIC_ASSET_ID;
+const BESU_ASSET_ID = uuidv4();
 let assetContractAddress: string;
 let wrapperContractAddress: string;
 
@@ -289,9 +290,9 @@ beforeAll(async () => {
     const satpContractName = "satp-contract";
     const satpWrapperContractName = "satp-wrapper-contract";
     const satpContractRelPath =
-      "../../../../test/typescript/fabric/contracts/satp-contract/chaincode-typescript";
+      "../../../test/typescript/fabric/contracts/satp-contract/chaincode-typescript";
     const wrapperSatpContractRelPath =
-      "../../../../main/typescript/fabric-contracts/satp-wrapper/chaincode-typescript";
+      "../../../main/typescript/fabric-contracts/satp-wrapper/chaincode-typescript";
     const satpContractDir = path.join(__dirname, satpContractRelPath);
 
     // ├── package.json
@@ -956,18 +957,31 @@ describe("SATPGateway startup", () => {
     const dispatcher = gateway.getBLODispatcher();
 
     expect(dispatcher).toBeTruthy();
+    const sourceAsset: Asset = {
+      owner: assigneeEthAccount.address,
+      ontology: JSON.stringify(BesuSATPInteraction),
+      contractName: erc20TokenContract,
+      contractAddress: assetContractAddress,
+    };
+    const destinyAsset: Asset = {
+      owner: fabricUser.credentials.certificate,
+      ontology: JSON.stringify(FabricSATPInteraction),
+      contractName: erc20TokenContract,
+      contractAddress: FABRIC_ASSET_ID,
+      mspId: fabricUser.mspId,
+      channelName: fabricChannelName,
+    };
     const req: TransactRequest = {
       contextID: "mockContext",
       fromDLTNetworkID: SupportedChain.BESU,
       toDLTNetworkID: SupportedChain.FABRIC,
-      fromToken: BESU_ASSET_ID,
-      toToken: FABRIC_ASSET_ID,
       fromAmount: "1",
       toAmount: "1",
       mode: "transfer",
-      beneficiaryPubkey: fabricUser.credentials.certificate,
       originatorPubkey: assigneeEthAccount.address,
-      bridgeContractOntology: "",
+      beneficiaryPubkey: fabricUser.credentials.certificate,
+      sourceAsset,
+      destinyAsset,
     };
 
     const res = await dispatcher?.Transact(req);

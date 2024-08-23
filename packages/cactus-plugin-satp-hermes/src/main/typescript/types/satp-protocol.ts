@@ -58,6 +58,7 @@ export interface SATPHandlerOptions {
   serverService: SATPService;
   clientService: SATPService;
   supportedDLTs: SupportedChain[];
+  pubkeys: Map<string, string>;
   loggerOptions: ILoggerOptions;
   stage: string;
 }

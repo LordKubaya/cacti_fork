@@ -57,6 +57,7 @@ export type Address =
 
 export type GatewayIdentity = {
   id: string;
+  pubKey?: string;
   name?: string;
   version: DraftVersions[];
   supportedDLTs: SupportedChain[];

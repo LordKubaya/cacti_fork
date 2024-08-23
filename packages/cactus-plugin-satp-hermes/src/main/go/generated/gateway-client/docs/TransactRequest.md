@@ -10,17 +10,17 @@ Name | Type | Description | Notes
 **FromDLTNetworkID** | **string** |  | 
 **ToDLTNetworkID** | **string** |  | 
 **FromAmount** | **string** |  | 
-**FromToken** | **string** |  | 
 **ToAmount** | **string** |  | 
-**ToToken** | **string** |  | 
 **BeneficiaryPubkey** | **string** |  | 
 **OriginatorPubkey** | **string** |  | 
+**SourceAsset** | [**TransactRequestSourceAsset**](TransactRequestSourceAsset.md) |  | 
+**DestinyAsset** | [**TransactRequestSourceAsset**](TransactRequestSourceAsset.md) |  | 
 
 ## Methods
 
 ### NewTransactRequest
 
-`func NewTransactRequest(contextID string, mode string, fromDLTNetworkID string, toDLTNetworkID string, fromAmount string, fromToken string, toAmount string, toToken string, beneficiaryPubkey string, originatorPubkey string, ) *TransactRequest`
+`func NewTransactRequest(contextID string, mode string, fromDLTNetworkID string, toDLTNetworkID string, fromAmount string, toAmount string, beneficiaryPubkey string, originatorPubkey string, sourceAsset TransactRequestSourceAsset, destinyAsset TransactRequestSourceAsset, ) *TransactRequest`
 
 NewTransactRequest instantiates a new TransactRequest object
 This constructor will assign default values to properties that have it defined,
@@ -160,26 +160,6 @@ and a boolean to check if the value has been set.
 SetFromAmount sets FromAmount field to given value.
 
 
-### GetFromToken
-
-`func (o *TransactRequest) GetFromToken() string`
-
-GetFromToken returns the FromToken field if non-nil, zero value otherwise.
-
-### GetFromTokenOk
-
-`func (o *TransactRequest) GetFromTokenOk() (*string, bool)`
-
-GetFromTokenOk returns a tuple with the FromToken field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetFromToken
-
-`func (o *TransactRequest) SetFromToken(v string)`
-
-SetFromToken sets FromToken field to given value.
-
-
 ### GetToAmount
 
 `func (o *TransactRequest) GetToAmount() string`
@@ -198,26 +178,6 @@ and a boolean to check if the value has been set.
 `func (o *TransactRequest) SetToAmount(v string)`
 
 SetToAmount sets ToAmount field to given value.
-
-
-### GetToToken
-
-`func (o *TransactRequest) GetToToken() string`
-
-GetToToken returns the ToToken field if non-nil, zero value otherwise.
-
-### GetToTokenOk
-
-`func (o *TransactRequest) GetToTokenOk() (*string, bool)`
-
-GetToTokenOk returns a tuple with the ToToken field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetToToken
-
-`func (o *TransactRequest) SetToToken(v string)`
-
-SetToToken sets ToToken field to given value.
 
 
 ### GetBeneficiaryPubkey
@@ -258,6 +218,46 @@ and a boolean to check if the value has been set.
 `func (o *TransactRequest) SetOriginatorPubkey(v string)`
 
 SetOriginatorPubkey sets OriginatorPubkey field to given value.
+
+
+### GetSourceAsset
+
+`func (o *TransactRequest) GetSourceAsset() TransactRequestSourceAsset`
+
+GetSourceAsset returns the SourceAsset field if non-nil, zero value otherwise.
+
+### GetSourceAssetOk
+
+`func (o *TransactRequest) GetSourceAssetOk() (*TransactRequestSourceAsset, bool)`
+
+GetSourceAssetOk returns a tuple with the SourceAsset field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetSourceAsset
+
+`func (o *TransactRequest) SetSourceAsset(v TransactRequestSourceAsset)`
+
+SetSourceAsset sets SourceAsset field to given value.
+
+
+### GetDestinyAsset
+
+`func (o *TransactRequest) GetDestinyAsset() TransactRequestSourceAsset`
+
+GetDestinyAsset returns the DestinyAsset field if non-nil, zero value otherwise.
+
+### GetDestinyAssetOk
+
+`func (o *TransactRequest) GetDestinyAssetOk() (*TransactRequestSourceAsset, bool)`
+
+GetDestinyAssetOk returns a tuple with the DestinyAsset field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetDestinyAsset
+
+`func (o *TransactRequest) SetDestinyAsset(v TransactRequestSourceAsset)`
+
+SetDestinyAsset sets DestinyAsset field to given value.
 
 
 

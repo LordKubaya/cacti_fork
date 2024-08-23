@@ -258,6 +258,7 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
     if (!pluginOptions.gid) {
       pluginOptions.gid = {
         id: id,
+        pubKey: bufArray2HexStr(pluginOptions.keyPair.publicKey),
         name: id,
         version: [
           {

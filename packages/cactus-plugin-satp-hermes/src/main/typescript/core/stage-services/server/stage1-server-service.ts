@@ -330,7 +330,7 @@ export class Stage1ServerService extends SATPService {
       throw new TransferInitClaimsHashError(fnTag);
     }
 
-    if (request.clientTransferNumber != undefined) {
+    if (request.clientTransferNumber != "") {
       this.Log.info(
         `${fnTag}, Optional variable loaded: clientTransferNumber...`,
       );

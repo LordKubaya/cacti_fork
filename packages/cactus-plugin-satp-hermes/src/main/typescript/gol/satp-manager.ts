@@ -183,10 +183,12 @@ export class SATPManager {
     sessionId?: string,
     contextID?: string,
   ): SATPSession {
-    let session: SATPSession;
     if (!sessionId) {
+      //TODO maybe compare to ""
+      if (!contextID) {
+        throw new Error("ContextID missing");
+      }
       return this.createNewSession(contextID || "MOCK_CONTEXT_ID");
-      return session;
     } else {
       const existingSession = this.sessions.get(sessionId);
       return existingSession || this.createNewSession("MOCK_CONTEXT_ID");
@@ -356,7 +358,12 @@ export class SATPManager {
     if (!channel) {
       throw new Error(`${fnTag}, Channel not found`);
     }
-
+    const counterGatewayID = this.orquestrator.getCounterPartyGateway(
+      channel.toGatewayID,
+    );
+    if (!counterGatewayID) {
+      throw new Error(`${fnTag}, counterparty gateway ID not found`);
+    }
     const sessionData: SessionData =
       session.getClientSessionData() as SessionData;
 
@@ -380,8 +387,7 @@ export class SATPManager {
       >;
 
     //TODO: implement GetPubKey service
-    const serverGatewayPubkey = (await clientSatpStage0.getPublicKey(Empty))
-      .publicKey;
+    const serverGatewayPubkey = counterGatewayID.pubKey;
 
     if (!serverGatewayPubkey) {
       throw new Error(`${fnTag}, Failed to get serverGatewayPubkey`);

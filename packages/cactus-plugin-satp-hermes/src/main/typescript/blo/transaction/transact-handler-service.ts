@@ -13,6 +13,7 @@ import {
   SignatureAlgorithm,
 } from "../../generated/proto/cacti/satp/v02/common/message_pb";
 import { GatewayOrchestrator } from "../../gol/gateway-orchestrator";
+import { GatewayIdentity } from "../../core/types";
 
 // todo
 export async function ExecuteTransact(
@@ -25,10 +26,10 @@ export async function ExecuteTransact(
   const fn = "BLO#transact-handler-service#ExecuteTransact";
 
   //TODO check input for valid strings...
-  //add to gateway plugin
-  const senderGatewayOwnerId: string = gol.getSelfId();
+  const ourGateway: GatewayIdentity = gol.ourGateway;
+  const senderGatewayOwnerId: string = ourGateway.id;
 
-  //Get this data is set in satpManager GOL
+  //This data is set in satpManager GOL
   const serverGatewayPubkey: string = "";
   const receiverGatewayOwnerId: string = "";
 
@@ -44,13 +45,14 @@ export async function ExecuteTransact(
   const loggingProfile: string = "";
   const accessControlProfile: string = "";
 
-  const bridgeContractOntology: string = req.bridgeContractOntology;
+  //todo verify ontologies signatures, validation, etc.
 
   let session = manager.getOrCreateSession(undefined, req.contextID);
   session = populateClientSessionData(
     session,
     "v2.0",
-    req.fromToken,
+    req.sourceAsset.contractAddress,
+    req.destinyAsset.contractAddress,
     req.originatorPubkey,
     req.beneficiaryPubkey,
     req.fromDLTNetworkID,
@@ -65,7 +67,16 @@ export async function ExecuteTransact(
     credentialProfile,
     loggingProfile,
     accessControlProfile,
-    bridgeContractOntology,
+    req.sourceAsset.ontology,
+    req.destinyAsset.ontology,
+    req.fromAmount,
+    req.toAmount,
+    req.sourceAsset.mspId ? req.sourceAsset.mspId : "",
+    req.sourceAsset.channelName ? req.sourceAsset.channelName : "",
+    req.destinyAsset.mspId ? req.destinyAsset.mspId : "",
+    req.destinyAsset.channelName ? req.destinyAsset.channelName : "",
+    req.sourceAsset.contractName,
+    req.destinyAsset.contractName,
   );
   await manager.initiateTransfer(session);
 

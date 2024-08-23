@@ -22,6 +22,7 @@ import {
   SessionNotFoundError,
 } from "../errors/satp-handler-errors";
 import { getSessionId } from "./handler-utils";
+import { PreSATPTransferResponse } from "../../generated/proto/cacti/satp/v02/stage_0_pb";
 
 export class Stage1SATPHandler implements SATPHandler {
   public static readonly CLASS_NAME = SATPHandlerType.STAGE1;
@@ -133,6 +134,7 @@ export class Stage1SATPHandler implements SATPHandler {
   //client side
   public async TransferProposalRequest(
     sessionId: string,
+    response: PreSATPTransferResponse,
   ): Promise<TransferProposalRequestMessage> {
     const stepTag = `TransferProposalRequest()`;
     const fnTag = `${this.getHandlerIdentifier()}#${stepTag}`;
@@ -143,6 +145,8 @@ export class Stage1SATPHandler implements SATPHandler {
       if (!session) {
         throw new Error(`${fnTag}, Session not found`);
       }
+
+      await this.clientService.checkPreSATPTransferResponse(response, session);
 
       const requestTransferProposal =
         await this.clientService.transferProposalRequest(

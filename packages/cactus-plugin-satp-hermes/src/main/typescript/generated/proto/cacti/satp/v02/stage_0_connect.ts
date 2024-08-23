@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Empty, MethodKind } from "@bufbuild/protobuf";
-import { PreTransferCommenceRequestMessage, PreTransferCommenceResponseMessage, PreTransferVerificationAndContextEstablishmentRequest, PreTransferVerificationAndContextEstablishmentResponse, PublicKey } from "./stage_0_pb.js";
+import { NewSessionRequest, NewSessionResponse, PreSATPTransferRequest, PreSATPTransferResponse } from "./stage_0_pb.js";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * @generated from service cacti.satp.v02.SatpStage0Service
@@ -13,34 +13,21 @@ export const SatpStage0Service = {
   typeName: "cacti.satp.v02.SatpStage0Service",
   methods: {
     /**
-     * util RPCs
-     *
-     * @generated from rpc cacti.satp.v02.SatpStage0Service.GetPublicKey
+     * @generated from rpc cacti.satp.v02.SatpStage0Service.NewSession
      */
-    getPublicKey: {
-      name: "GetPublicKey",
-      I: Empty,
-      O: PublicKey,
+    newSession: {
+      name: "NewSession",
+      I: NewSessionRequest,
+      O: NewSessionResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * step RPCs
-     *
-     * @generated from rpc cacti.satp.v02.SatpStage0Service.PreTransferProposalClaims
+     * @generated from rpc cacti.satp.v02.SatpStage0Service.PreSATPTransfer
      */
-    preTransferProposalClaims: {
-      name: "PreTransferProposalClaims",
-      I: PreTransferVerificationAndContextEstablishmentRequest,
-      O: PreTransferVerificationAndContextEstablishmentResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc cacti.satp.v02.SatpStage0Service.PreTransferCommence
-     */
-    preTransferCommence: {
-      name: "PreTransferCommence",
-      I: PreTransferCommenceRequestMessage,
-      O: PreTransferCommenceResponseMessage,
+    preSATPTransfer: {
+      name: "PreSATPTransfer",
+      I: PreSATPTransferRequest,
+      O: PreSATPTransferResponse,
       kind: MethodKind.Unary,
     },
   }

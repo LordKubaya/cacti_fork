@@ -104,6 +104,49 @@ export interface Action {
     'toAddress'?: string;
 }
 /**
+ * An asset
+ * @export
+ * @interface Asset
+ */
+export interface Asset {
+    /**
+     * 
+     * @type {string}
+     * @memberof Asset
+     */
+    'owner': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Asset
+     */
+    'ontology': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Asset
+     */
+    'contractName': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Asset
+     */
+    'contractAddress': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Asset
+     */
+    'mspId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Asset
+     */
+    'channelName'?: string;
+}
+/**
  * Stores global constants related to the authorization of the application. Specifically enumerates the claims to validate for as per RFC 7519, section 4.1. See: https://tools.ietf.org/html/rfc7519#section-4.1
  * @export
  * @enum {string}
@@ -1874,19 +1917,7 @@ export interface TransactRequest {
      * @type {string}
      * @memberof TransactRequest
      */
-    'fromToken': string;
-    /**
-     * 
-     * @type {string}
-     * @memberof TransactRequest
-     */
     'toAmount': string;
-    /**
-     * 
-     * @type {string}
-     * @memberof TransactRequest
-     */
-    'toToken': string;
     /**
      * 
      * @type {string}
@@ -1901,10 +1932,16 @@ export interface TransactRequest {
     'originatorPubkey': string;
     /**
      * 
-     * @type {string}
+     * @type {TransactRequestSourceAsset}
      * @memberof TransactRequest
      */
-    'bridgeContractOntology': string;
+    'sourceAsset': TransactRequestSourceAsset;
+    /**
+     * 
+     * @type {TransactRequestSourceAsset}
+     * @memberof TransactRequest
+     */
+    'destinyAsset': TransactRequestSourceAsset;
 }
 
 export const TransactRequestModeEnum = {
@@ -1914,6 +1951,49 @@ export const TransactRequestModeEnum = {
 
 export type TransactRequestModeEnum = typeof TransactRequestModeEnum[keyof typeof TransactRequestModeEnum];
 
+/**
+ * An asset
+ * @export
+ * @interface TransactRequestSourceAsset
+ */
+export interface TransactRequestSourceAsset {
+    /**
+     * 
+     * @type {string}
+     * @memberof TransactRequestSourceAsset
+     */
+    'owner': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TransactRequestSourceAsset
+     */
+    'ontology': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TransactRequestSourceAsset
+     */
+    'contractName': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TransactRequestSourceAsset
+     */
+    'contractAddress': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TransactRequestSourceAsset
+     */
+    'mspId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TransactRequestSourceAsset
+     */
+    'channelName'?: string;
+}
 /**
  * Response schema for a transaction request. Includes the session ID and the current status of the transaction.
  * @export
