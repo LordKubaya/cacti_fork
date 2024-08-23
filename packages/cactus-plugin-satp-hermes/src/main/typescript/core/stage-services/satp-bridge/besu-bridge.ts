@@ -53,6 +53,7 @@ export class BesuBridge implements NetworkBridge {
     this.bungee = new PluginBungeeHermes(besuConfig.bungeeOptions);
     this.bungee.addStrategy(this.network, new StrategyBesu(level));
 
+    //TODO is this needed?
     if (besuConfig.besuAssets) {
       besuConfig.besuAssets.forEach(async (asset) => {
         await this.wrapAsset(asset);

@@ -61,14 +61,17 @@ import {
   SATPGateway,
   PluginFactorySATPGateway,
   TransactRequest,
+  Asset,
 } from "../../../main/typescript";
-import { SupportedChain } from "../../../main/typescript/core/types";
+import {
+  Address,
+  GatewayIdentity,
+  SupportedChain,
+} from "../../../main/typescript/core/types";
 import {
   IPluginFactoryOptions,
   PluginImportType,
 } from "@hyperledger/cactus-core-api";
-import { TokenType } from "../../../main/typescript/core/stage-services/satp-bridge/types/asset";
-import { BesuAsset } from "../../../main/typescript/core/stage-services/satp-bridge/types/besu-asset";
 import FabricSATPInteraction from "../../../test/typescript/fabric/satp-erc20-interact.json";
 import BesuSATPInteraction from "../../solidity/satp-erc20-interact.json";
 
@@ -106,9 +109,10 @@ let testing_connector: PluginLedgerConnectorBesu;
 let besuKeyPair: { privateKey: string };
 let bridgeEthAccount: Account;
 let assigneeEthAccount: Account;
-const BESU_ASSET_ID = FABRIC_ASSET_ID;
+const BESU_ASSET_ID = uuidv4();
 let assetContractAddress: string;
 let wrapperContractAddress: string;
+let satpContractName: string;
 
 let pluginBungeeBesuOptions: IPluginBungeeHermesOptions;
 
@@ -118,6 +122,8 @@ let besuOptions: IPluginLedgerConnectorBesuOptions;
 let keychainPlugin1: PluginKeychainMemory;
 let keychainPlugin2: PluginKeychainMemory;
 let fabricUser: X509Identity;
+
+let apiClient: FabricApi;
 
 afterAll(async () => {
   await besuLedger.stop();
@@ -283,15 +289,15 @@ beforeAll(async () => {
 
     configFabric = new Configuration({ basePath: apiUrl });
 
-    const apiClient = new FabricApi(configFabric);
+    apiClient = new FabricApi(configFabric);
 
     // deploy contracts ...
-    const satpContractName = "satp-contract";
+    satpContractName = "satp-contract";
     const satpWrapperContractName = "satp-wrapper-contract";
     const satpContractRelPath =
-      "../../../../test/typescript/fabric/contracts/satp-contract/chaincode-typescript";
+      "../../../test/typescript/fabric/contracts/satp-contract/chaincode-typescript";
     const wrapperSatpContractRelPath =
-      "../../../../main/typescript/fabric-contracts/satp-wrapper/chaincode-typescript";
+      "../../../main/typescript/fabric-contracts/satp-wrapper/chaincode-typescript";
     const satpContractDir = path.join(__dirname, satpContractRelPath);
 
     // ├── package.json
@@ -712,25 +718,13 @@ beforeAll(async () => {
       },
     };
 
-    const fabricAsset = {
-      tokenId: FABRIC_ASSET_ID,
-      tokenType: TokenType.NONSTANDARD,
-      owner: clientId,
-      mspId: "Org1MSP",
-      channelName: fabricChannelName,
-      contractName: satpContractName,
-      amount: 0,
-      ontology: JSON.stringify(FabricSATPInteraction),
-    };
-
     fabricConfig = {
-      network: "FABRIC",
+      network: SupportedChain.FABRIC,
       signingCredential: bridgeFabricSigningCredential,
       channelName: fabricChannelName,
       contractName: satpWrapperContractName,
       options: pluginOptionsFabricBridge,
       bungeeOptions: pluginBungeeFabricOptions,
-      fabricAssets: [fabricAsset],
     } as FabricConfig;
 
     // networkDetails = {
@@ -874,17 +868,9 @@ beforeAll(async () => {
       pluginRegistry: new PluginRegistry(),
       logLevel,
     };
-    const asset = {
-      tokenId: BESU_ASSET_ID,
-      tokenType: TokenType.NONSTANDARD,
-      owner: firstHighNetWorthAccount,
-      contractName: erc20TokenContract,
-      contractAddress: assetContractAddress,
-      ontology: JSON.stringify(BesuSATPInteraction),
-    } as BesuAsset;
 
     besuConfig = {
-      network: "BESU",
+      network: SupportedChain.BESU,
       keychainId: keychainPlugin2.getKeychainId(),
       signingCredential: {
         ethAccount: bridgeEthAccount.address,
@@ -895,8 +881,7 @@ beforeAll(async () => {
       contractAddress: wrapperContractAddress,
       options: besuOptions,
       bungeeOptions: pluginBungeeBesuOptions,
-      gas: 9999999999999,
-      besuAssets: [asset],
+      gas: 999999999999999,
     };
 
     const giveRoleRes = await testing_connector.invokeContract({
@@ -917,62 +902,214 @@ beforeAll(async () => {
     expect(giveRoleRes.success).toBeTruthy();
     log.info("BRIDGE_ROLE given to SATPWrapperContract successfully");
   }
+
+  const responseMint = await testing_connector.invokeContract({
+    contractName: erc20TokenContract,
+    keychainId: keychainPlugin1.getKeychainId(),
+    invocationType: EthContractInvocationType.Send,
+    methodName: "mint",
+    params: [firstHighNetWorthAccount, "100"],
+    signingCredential: {
+      ethAccount: firstHighNetWorthAccount,
+      secret: besuKeyPair.privateKey,
+      type: Web3SigningCredentialType.PrivateKeyHex,
+    },
+    gas: 999999999,
+  });
+  expect(responseMint).toBeTruthy();
+  expect(responseMint.success).toBeTruthy();
+  log.info("Minted 100 tokens to firstHighNetWorthAccount");
+
+  const responseApprove = await testing_connector.invokeContract({
+    contractName: erc20TokenContract,
+    keychainId: keychainPlugin1.getKeychainId(),
+    invocationType: EthContractInvocationType.Send,
+    methodName: "approve",
+    params: [wrapperContractAddress, "100"],
+    signingCredential: {
+      ethAccount: firstHighNetWorthAccount,
+      secret: besuKeyPair.privateKey,
+      type: Web3SigningCredentialType.PrivateKeyHex,
+    },
+    gas: 999999999,
+  });
+  expect(responseApprove).toBeTruthy();
+  expect(responseApprove.success).toBeTruthy();
+  log.info("Approved 100 tokens to SATPWrapperContract");
 });
-describe("SATPGateway startup", () => {
+describe("2 SATPGateway sending a token from Besu to Fabric", () => {
   it("should realize a transfer", async () => {
     //setup satp gateway
     const factoryOptions: IPluginFactoryOptions = {
       pluginImportType: PluginImportType.Local,
     };
     const factory = new PluginFactorySATPGateway(factoryOptions);
-    const options: SATPGatewayConfig = {
+
+    const gatewayIdentity1 = {
+      id: "mockID-1",
+      name: "CustomGateway",
+      version: [
+        {
+          Core: "v02",
+          Architecture: "v02",
+          Crash: "v02",
+        },
+      ],
+      supportedDLTs: [SupportedChain.BESU],
+      proofID: "mockProofID10",
+      address: "http://localhost" as Address,
+    } as GatewayIdentity;
+
+    const gatewayIdentity2 = {
+      id: "mockID-2",
+      name: "CustomGateway",
+      version: [
+        {
+          Core: "v02",
+          Architecture: "v02",
+          Crash: "v02",
+        },
+      ],
+      supportedDLTs: [SupportedChain.FABRIC],
+      proofID: "mockProofID11",
+      address: "http://localhost" as Address,
+      gatewayServerPort: 3110,
+      gatewayClientPort: 3111,
+    } as GatewayIdentity;
+
+    const options1: SATPGatewayConfig = {
       logLevel: "DEBUG",
-      gid: {
-        id: "mockID",
-        name: "CustomGateway",
-        version: [
-          {
-            Core: "v02",
-            Architecture: "v02",
-            Crash: "v02",
-          },
-        ],
-        supportedDLTs: [SupportedChain.FABRIC, SupportedChain.BESU],
-        proofID: "mockProofID10",
-        address: "https://localhost",
-      },
-      bridgesConfig: [besuConfig, fabricConfig],
+      gid: gatewayIdentity1,
+      counterPartyGateways: [gatewayIdentity2], //only knows itself
+      bridgesConfig: [besuConfig],
     };
-    const gateway = await factory.create(options);
-    expect(gateway).toBeInstanceOf(SATPGateway);
 
-    const identity = gateway.Identity;
+    const options2: SATPGatewayConfig = {
+      logLevel: "DEBUG",
+      gid: gatewayIdentity2,
+      counterPartyGateways: [gatewayIdentity1], //only knows itself
+      bridgesConfig: [fabricConfig],
+    };
+    const gateway1 = await factory.create(options1);
+    expect(gateway1).toBeInstanceOf(SATPGateway);
+
+    const identity1 = gateway1.Identity;
     // default servers
-    expect(identity.gatewayServerPort).toBe(3010);
-    expect(identity.gatewayClientPort).toBe(3011);
-    expect(identity.address).toBe("https://localhost");
-    await gateway.startup();
+    expect(identity1.gatewayServerPort).toBe(3010);
+    expect(identity1.gatewayClientPort).toBe(3011);
+    expect(identity1.address).toBe("http://localhost");
+    await gateway1.startup();
 
-    const dispatcher = gateway.getBLODispatcher();
+    const gateway2 = await factory.create(options2);
+    expect(gateway2).toBeInstanceOf(SATPGateway);
+
+    const identity2 = gateway2.Identity;
+    // default servers
+    expect(identity2.gatewayServerPort).toBe(3110);
+    expect(identity2.gatewayClientPort).toBe(3111);
+    expect(identity2.address).toBe("http://localhost");
+    await gateway2.startup();
+
+    const dispatcher = gateway1.getBLODispatcher();
 
     expect(dispatcher).toBeTruthy();
+    const sourceAsset: Asset = {
+      owner: firstHighNetWorthAccount,
+      ontology: JSON.stringify(BesuSATPInteraction),
+      contractName: erc20TokenContract,
+      contractAddress: assetContractAddress,
+    };
+    const destinyAsset: Asset = {
+      owner: clientId,
+      ontology: JSON.stringify(FabricSATPInteraction),
+      contractName: satpContractName,
+      mspId: fabricUser.mspId,
+      channelName: fabricChannelName,
+    };
     const req: TransactRequest = {
       contextID: "mockContext",
       fromDLTNetworkID: SupportedChain.BESU,
       toDLTNetworkID: SupportedChain.FABRIC,
-      fromToken: BESU_ASSET_ID,
-      toToken: FABRIC_ASSET_ID,
-      fromAmount: "1",
+      fromAmount: "100",
       toAmount: "1",
       mode: "transfer",
-      beneficiaryPubkey: fabricUser.credentials.certificate,
       originatorPubkey: assigneeEthAccount.address,
-      bridgeContractOntology: "",
+      beneficiaryPubkey: fabricUser.credentials.certificate,
+      sourceAsset,
+      destinyAsset,
     };
 
     const res = await dispatcher?.Transact(req);
     log.info(res?.statusResponse);
 
-    await gateway.shutdown();
+    const responseBalanceOwner = await testing_connector.invokeContract({
+      contractName: erc20TokenContract,
+      keychainId: keychainPlugin1.getKeychainId(),
+      invocationType: EthContractInvocationType.Call,
+      methodName: "checkBalance",
+      params: [firstHighNetWorthAccount],
+      signingCredential: {
+        ethAccount: firstHighNetWorthAccount,
+        secret: besuKeyPair.privateKey,
+        type: Web3SigningCredentialType.PrivateKeyHex,
+      },
+      gas: 999999999,
+    });
+    expect(responseBalanceOwner).toBeTruthy();
+    expect(responseBalanceOwner.success).toBeTruthy();
+    expect(responseBalanceOwner.callOutput).toBe("0");
+    log.info("Amount was transfer correctly from the Owner account");
+
+    const responseBalanceBridge = await testing_connector.invokeContract({
+      contractName: erc20TokenContract,
+      keychainId: keychainPlugin1.getKeychainId(),
+      invocationType: EthContractInvocationType.Call,
+      methodName: "checkBalance",
+      params: [wrapperContractAddress],
+      signingCredential: {
+        ethAccount: firstHighNetWorthAccount,
+        secret: besuKeyPair.privateKey,
+        type: Web3SigningCredentialType.PrivateKeyHex,
+      },
+      gas: 999999999,
+    });
+    expect(responseBalanceBridge).toBeTruthy();
+    expect(responseBalanceBridge.success).toBeTruthy();
+    expect(responseBalanceBridge.callOutput).toBe("0");
+    log.info("Amount was transfer correctly to the Wrapper account");
+
+    const responseBalance1 = await apiClient.runTransactionV1({
+      contractName: satpContractName,
+      channelName: fabricChannelName,
+      params: [BRIDGE_ID],
+      methodName: "ClientIDAccountBalance",
+      invocationType: FabricContractInvocationType.Send,
+      signingCredential: fabricSigningCredential,
+    });
+
+    expect(responseBalance1).not.toBeUndefined();
+    expect(responseBalance1.status).toBeGreaterThan(199);
+    expect(responseBalance1.status).toBeLessThan(300);
+    expect(responseBalance1.data).not.toBeUndefined();
+    expect(responseBalance1.data.functionOutput).toBe("0");
+    log.info("Amount was transfer correctly from the Bridge account");
+
+    const responseBalance2 = await apiClient.runTransactionV1({
+      contractName: satpContractName,
+      channelName: fabricChannelName,
+      params: [clientId],
+      methodName: "ClientIDAccountBalance",
+      invocationType: FabricContractInvocationType.Send,
+      signingCredential: fabricSigningCredential,
+    });
+    expect(responseBalance2).not.toBeUndefined();
+    expect(responseBalance2.status).toBeGreaterThan(199);
+    expect(responseBalance2.status).toBeLessThan(300);
+    expect(responseBalance2.data).not.toBeUndefined();
+    expect(responseBalance2.data.functionOutput).toBe("1");
+    log.info("Amount was transfer correctly to the Owner account");
+
+    await gateway1.shutdown();
+    await gateway2.shutdown();
   });
 });

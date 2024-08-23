@@ -13,7 +13,7 @@ import { Stage1ServerService } from "../core/stage-services/server/stage1-server
 import { Stage2ServerService } from "../core/stage-services/server/stage2-server-service";
 import { Stage3ServerService } from "../core/stage-services/server/stage3-server-service";
 import { SATPSession } from "../core/satp-session";
-import { SupportedChain } from "../core/types";
+import { GatewayIdentity, SupportedChain } from "../core/types";
 import { Stage0ClientService } from "../core/stage-services/client/stage0-client-service";
 import { Stage1ClientService } from "../core/stage-services/client/stage1-client-service";
 import { Stage2ClientService } from "../core/stage-services/client/stage2-client-service";
@@ -42,7 +42,6 @@ import { SatpStage2Service } from "../generated/proto/cacti/satp/v02/stage_2_con
 import { SatpStage3Service } from "../generated/proto/cacti/satp/v02/stage_3_connect";
 import { PromiseClient as PromiseConnectClient } from "@connectrpc/connect";
 import { SatpStage0Service } from "../generated/proto/cacti/satp/v02/stage_0_connect";
-import { Empty } from "@bufbuild/protobuf";
 
 export interface ISATPManagerOptions {
   logLevel?: LogLevelDesc;
@@ -52,7 +51,7 @@ export interface ISATPManagerOptions {
   pubKey: string;
   supportedDLTs: SupportedChain[];
   bridgeManager: SATPBridgesManager;
-  orquestrator: GatewayOrchestrator;
+  orchestrator: GatewayOrchestrator;
 }
 
 export class SATPManager {
@@ -73,7 +72,9 @@ export class SATPManager {
 
   private readonly bridgesManager: SATPBridgesManager;
 
-  private readonly orquestrator: GatewayOrchestrator;
+  private readonly orchestrator: GatewayOrchestrator;
+
+  private gatewaysPubKeys: Map<string, string> = new Map();
 
   constructor(public readonly options: ISATPManagerOptions) {
     const fnTag = `${SATPManager.CLASS_NAME}#constructor()`;
@@ -87,8 +88,9 @@ export class SATPManager {
     this.supportedDLTs = options.supportedDLTs;
     this.signer = options.signer;
     this.bridgesManager = options.bridgeManager;
-    this.orquestrator = options.orquestrator;
+    this.orchestrator = options.orchestrator;
     this._pubKey = options.pubKey;
+    this.loadPubKeys(this.orchestrator.getCounterPartyGateways());
 
     this.sessions = options.sessions || new Map<string, SATPSession>();
     const handlersClasses = [
@@ -127,6 +129,8 @@ export class SATPManager {
     );
 
     this.initializeHandlers(handlersClasses, handlersOptions);
+
+    this.orchestrator.addHandlers(this.satpHandlers);
   }
 
   public get pubKey(): string {
@@ -183,10 +187,12 @@ export class SATPManager {
     sessionId?: string,
     contextID?: string,
   ): SATPSession {
-    let session: SATPSession;
     if (!sessionId) {
+      //TODO maybe compare to ""
+      if (!contextID) {
+        throw new Error("ContextID missing");
+      }
       return this.createNewSession(contextID || "MOCK_CONTEXT_ID");
-      return session;
     } else {
       const existingSession = this.sessions.get(sessionId);
       return existingSession || this.createNewSession("MOCK_CONTEXT_ID");
@@ -196,7 +202,7 @@ export class SATPManager {
   private createNewSession(contextID: string): SATPSession {
     const session = new SATPSession({
       contextID: contextID,
-      server: true, //todo implement the separation of server and client
+      server: false,
       client: true,
     });
     this.sessions?.set(session.getSessionId(), session);
@@ -291,6 +297,8 @@ export class SATPManager {
           serverService: serverService,
           clientService: clientService,
           supportedDLTs: this.supportedDLTs,
+          pubkeys: this.gatewaysPubKeys,
+          gatewayId: this.orchestrator.ourGateway.id,
           stage: serviceIndex,
           loggerOptions: {
             level: level,
@@ -338,7 +346,7 @@ export class SATPManager {
   }
 
   public async initiateTransfer(session: SATPSession): Promise<void> {
-    const fnTag = `${SATPManager.CLASS_NAME}#initializeHandlers()`;
+    const fnTag = `${SATPManager.CLASS_NAME}#initiateTransfer()`;
     this.logger.info(`${fnTag}, Initiating Transfer`);
     this.logger.debug(
       `SessionData: ${JSON.stringify(session.getClientSessionData())}`,
@@ -348,7 +356,7 @@ export class SATPManager {
       throw new Error(`${fnTag}, Session not found`);
     }
     //maybe get a suitable gateway first.
-    const channel = this.orquestrator.getChannel(
+    const channel = this.orchestrator.getChannel(
       session.getClientSessionData()
         ?.recipientGatewayNetworkId as SupportedChain,
     );
@@ -356,7 +364,12 @@ export class SATPManager {
     if (!channel) {
       throw new Error(`${fnTag}, Channel not found`);
     }
-
+    const counterGatewayID = this.orchestrator.getGatewayIdentity(
+      channel.toGatewayID,
+    );
+    if (!counterGatewayID) {
+      throw new Error(`${fnTag}, counterparty gateway ID not found`);
+    }
     const sessionData: SessionData =
       session.getClientSessionData() as SessionData;
 
@@ -366,22 +379,51 @@ export class SATPManager {
       channel.clients.get("0") as PromiseConnectClient<
         typeof SatpStage0Service
       >;
+
+    if (!clientSatpStage0) {
+      throw new Error(`${fnTag}, Failed to get clientSatpStage0`);
+    }
+
     const clientSatpStage1: PromiseConnectClient<typeof SatpStage1Service> =
       channel.clients.get("1") as PromiseConnectClient<
         typeof SatpStage1Service
       >;
+
+    if (!clientSatpStage1) {
+      throw new Error(`${fnTag}, Failed to get clientSatpStage1`);
+    }
+
     const clientSatpStage2: PromiseConnectClient<typeof SatpStage2Service> =
       channel.clients.get("2") as PromiseConnectClient<
         typeof SatpStage2Service
       >;
+
+    if (!clientSatpStage2) {
+      throw new Error(`${fnTag}, Failed to get clientSatpStage2`);
+    }
     const clientSatpStage3: PromiseConnectClient<typeof SatpStage3Service> =
       channel.clients.get("3") as PromiseConnectClient<
         typeof SatpStage3Service
       >;
 
+    if (!clientSatpStage3) {
+      throw new Error(`${fnTag}, Failed to get clientSatpStage3`);
+    }
+
+    const check = await clientSatpStage0.check({ check: "check" });
+
+    this.logger.info(`${fnTag}, check: ${JSON.stringify(check)}`);
+
+    if (!check) {
+      throw new Error(`${fnTag}, Failed to check`);
+    }
+
+    if (check.check !== "check") {
+      throw new Error(`${fnTag}, check failed`);
+    }
+
     //TODO: implement GetPubKey service
-    const serverGatewayPubkey = (await clientSatpStage0.getPublicKey(Empty))
-      .publicKey;
+    const serverGatewayPubkey = counterGatewayID.pubKey;
 
     if (!serverGatewayPubkey) {
       throw new Error(`${fnTag}, Failed to get serverGatewayPubkey`);
@@ -389,11 +431,46 @@ export class SATPManager {
 
     sessionData.serverGatewayPubkey = serverGatewayPubkey;
 
-    this.logger.info(`${fnTag}, Stage 0`);
+    const newSessionRequest = await (
+      this.getSATPHandler(SATPHandlerType.STAGE0) as Stage0SATPHandler
+    ).NewSessionRequest(session.getSessionId());
+
+    if (!newSessionRequest) {
+      throw new Error(`${fnTag}, Failed to create NewSessionRequest`);
+    }
+
+    const responseNewSession =
+      await clientSatpStage0.newSession(newSessionRequest);
+
+    this.logger.info(
+      `${fnTag}, responseNewSession: ${JSON.stringify(responseNewSession)}`,
+    );
+
+    if (!responseNewSession) {
+      throw new Error(`${fnTag}, Failed to create NewSessionRequest`);
+    }
+
+    const requestPreSATPTransfer = await (
+      this.getSATPHandler(SATPHandlerType.STAGE0) as Stage0SATPHandler
+    ).PreSATPTransferRequest(responseNewSession, session.getSessionId());
+
+    if (!requestPreSATPTransfer) {
+      throw new Error(`${fnTag}, Failed to create PreSATPTransferRequest`);
+    }
+
+    const responsePreSATPTransfer = await clientSatpStage0.preSATPTransfer(
+      requestPreSATPTransfer,
+    );
+
+    this.logger.info(
+      `${fnTag}, responsePreSATPTransfer: ${JSON.stringify(responsePreSATPTransfer)}`,
+    );
+
+    this.logger.info(`${fnTag}, Stage 0 completed`);
 
     const requestTransferProposal = await (
       this.getSATPHandler(SATPHandlerType.STAGE1) as Stage1SATPHandler
-    ).TransferProposalRequest(session.getSessionId());
+    ).TransferProposalRequest(session.getSessionId(), responsePreSATPTransfer);
 
     if (!requestTransferProposal) {
       throw new Error(`${fnTag}, Failed to create TransferProposalRequest`);
@@ -459,7 +536,7 @@ export class SATPManager {
 
     const requestCommitFinalAssertion = await (
       this.getSATPHandler(SATPHandlerType.STAGE3) as Stage3SATPHandler
-    ).CommitFinalAssertionRequest(responseLockAssertion);
+    ).CommitFinalAssertionRequest(responseCommitPreparation);
 
     if (!requestCommitFinalAssertion) {
       throw new Error(`${fnTag}, Failed to create CommitFinalAssertionRequest`);
@@ -487,5 +564,17 @@ export class SATPManager {
     );
 
     this.logger.info(`${fnTag}, Stage 3 completed`);
+  }
+
+  private loadPubKeys(gateways: Map<string, GatewayIdentity>): void {
+    gateways.forEach((gateway) => {
+      if (gateway.pubKey) {
+        this.gatewaysPubKeys.set(gateway.id, gateway.pubKey);
+      }
+    });
+    this.gatewaysPubKeys.set(
+      this.orchestrator.getSelfId(),
+      this.orchestrator.ourGateway.pubKey!,
+    );
   }
 }

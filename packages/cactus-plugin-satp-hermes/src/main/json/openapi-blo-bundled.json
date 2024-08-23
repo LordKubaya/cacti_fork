@@ -62,12 +62,11 @@
                   "fromDLTNetworkID",
                   "toDLTNetworkID",
                   "fromAmount",
-                  "fromToken",
                   "toAmount",
-                  "toToken",
                   "beneficiaryPubkey",
                   "originatorPubkey",
-                  "bridgeContractOntology"
+                  "sourceAsset",
+                  "destinyAsset"
                 ],
                 "properties": {
                   "contextID": {
@@ -99,17 +98,9 @@
                     "type": "string",
                     "example": "100"
                   },
-                  "fromToken": {
-                    "type": "string",
-                    "example": "TOKEN1"
-                  },
                   "toAmount": {
                     "type": "string",
                     "example": "95"
-                  },
-                  "toToken": {
-                    "type": "string",
-                    "example": "TOKEN2"
                   },
                   "beneficiaryPubkey": {
                     "type": "string"
@@ -117,8 +108,63 @@
                   "originatorPubkey": {
                     "type": "string"
                   },
-                  "bridgeContractOntology": {
-                    "type": "string"
+                  "sourceAsset": {
+                    "description": "An asset",
+                    "type": "object",
+                    "required": [
+                      "owner",
+                      "ontology",
+                      "contractName"
+                    ],
+                    "properties": {
+                      "owner": {
+                        "type": "string"
+                      },
+                      "ontology": {
+                        "type": "string"
+                      },
+                      "contractName": {
+                        "type": "string"
+                      },
+                      "contractAddress": {
+                        "type": "string"
+                      },
+                      "mspId": {
+                        "type": "string"
+                      },
+                      "channelName": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "destinyAsset": {
+                    "description": "An asset",
+                    "type": "object",
+                    "required": [
+                      "owner",
+                      "ontology",
+                      "contractName"
+                    ],
+                    "properties": {
+                      "owner": {
+                        "type": "string"
+                      },
+                      "ontology": {
+                        "type": "string"
+                      },
+                      "contractName": {
+                        "type": "string"
+                      },
+                      "contractAddress": {
+                        "type": "string"
+                      },
+                      "mspId": {
+                        "type": "string"
+                      },
+                      "channelName": {
+                        "type": "string"
+                      }
+                    }
                   }
                 }
               }
@@ -2677,6 +2723,35 @@
         },
         "example": "123e4567-e89b-12d3-a456-426614174000"
       },
+      "Asset": {
+        "description": "An asset",
+        "type": "object",
+        "required": [
+          "owner",
+          "ontology",
+          "contractName"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "ontology": {
+            "type": "string"
+          },
+          "contractName": {
+            "type": "string"
+          },
+          "contractAddress": {
+            "type": "string"
+          },
+          "mspId": {
+            "type": "string"
+          },
+          "channelName": {
+            "type": "string"
+          }
+        }
+      },
       "TransactRequest": {
         "description": "Request schema for initiating a transaction. Includes details such as the transaction context, mode (data or transfer), payload, and information about the source and destination DLT networks.",
         "type": "object",
@@ -2686,12 +2761,11 @@
           "fromDLTNetworkID",
           "toDLTNetworkID",
           "fromAmount",
-          "fromToken",
           "toAmount",
-          "toToken",
           "beneficiaryPubkey",
           "originatorPubkey",
-          "bridgeContractOntology"
+          "sourceAsset",
+          "destinyAsset"
         ],
         "properties": {
           "contextID": {
@@ -2723,17 +2797,9 @@
             "type": "string",
             "example": "100"
           },
-          "fromToken": {
-            "type": "string",
-            "example": "TOKEN1"
-          },
           "toAmount": {
             "type": "string",
             "example": "95"
-          },
-          "toToken": {
-            "type": "string",
-            "example": "TOKEN2"
           },
           "beneficiaryPubkey": {
             "type": "string"
@@ -2741,8 +2807,63 @@
           "originatorPubkey": {
             "type": "string"
           },
-          "bridgeContractOntology": {
-            "type": "string"
+          "sourceAsset": {
+            "description": "An asset",
+            "type": "object",
+            "required": [
+              "owner",
+              "ontology",
+              "contractName"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string"
+              },
+              "ontology": {
+                "type": "string"
+              },
+              "contractName": {
+                "type": "string"
+              },
+              "contractAddress": {
+                "type": "string"
+              },
+              "mspId": {
+                "type": "string"
+              },
+              "channelName": {
+                "type": "string"
+              }
+            }
+          },
+          "destinyAsset": {
+            "description": "An asset",
+            "type": "object",
+            "required": [
+              "owner",
+              "ontology",
+              "contractName"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string"
+              },
+              "ontology": {
+                "type": "string"
+              },
+              "contractName": {
+                "type": "string"
+              },
+              "contractAddress": {
+                "type": "string"
+              },
+              "mspId": {
+                "type": "string"
+              },
+              "channelName": {
+                "type": "string"
+              }
+            }
           }
         }
       },

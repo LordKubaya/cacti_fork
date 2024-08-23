@@ -25,29 +25,29 @@ type TransactRequest struct {
 	FromDLTNetworkID string `json:"fromDLTNetworkID"`
 	ToDLTNetworkID string `json:"toDLTNetworkID"`
 	FromAmount string `json:"fromAmount"`
-	FromToken string `json:"fromToken"`
 	ToAmount string `json:"toAmount"`
-	ToToken string `json:"toToken"`
 	BeneficiaryPubkey string `json:"beneficiaryPubkey"`
 	OriginatorPubkey string `json:"originatorPubkey"`
+	SourceAsset TransactRequestSourceAsset `json:"sourceAsset"`
+	DestinyAsset TransactRequestSourceAsset `json:"destinyAsset"`
 }
 
 // NewTransactRequest instantiates a new TransactRequest object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewTransactRequest(contextID string, mode string, fromDLTNetworkID string, toDLTNetworkID string, fromAmount string, fromToken string, toAmount string, toToken string, beneficiaryPubkey string, originatorPubkey string) *TransactRequest {
+func NewTransactRequest(contextID string, mode string, fromDLTNetworkID string, toDLTNetworkID string, fromAmount string, toAmount string, beneficiaryPubkey string, originatorPubkey string, sourceAsset TransactRequestSourceAsset, destinyAsset TransactRequestSourceAsset) *TransactRequest {
 	this := TransactRequest{}
 	this.ContextID = contextID
 	this.Mode = mode
 	this.FromDLTNetworkID = fromDLTNetworkID
 	this.ToDLTNetworkID = toDLTNetworkID
 	this.FromAmount = fromAmount
-	this.FromToken = fromToken
 	this.ToAmount = toAmount
-	this.ToToken = toToken
 	this.BeneficiaryPubkey = beneficiaryPubkey
 	this.OriginatorPubkey = originatorPubkey
+	this.SourceAsset = sourceAsset
+	this.DestinyAsset = destinyAsset
 	return &this
 }
 
@@ -211,30 +211,6 @@ func (o *TransactRequest) SetFromAmount(v string) {
 	o.FromAmount = v
 }
 
-// GetFromToken returns the FromToken field value
-func (o *TransactRequest) GetFromToken() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.FromToken
-}
-
-// GetFromTokenOk returns a tuple with the FromToken field value
-// and a boolean to check if the value has been set.
-func (o *TransactRequest) GetFromTokenOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.FromToken, true
-}
-
-// SetFromToken sets field value
-func (o *TransactRequest) SetFromToken(v string) {
-	o.FromToken = v
-}
-
 // GetToAmount returns the ToAmount field value
 func (o *TransactRequest) GetToAmount() string {
 	if o == nil {
@@ -257,30 +233,6 @@ func (o *TransactRequest) GetToAmountOk() (*string, bool) {
 // SetToAmount sets field value
 func (o *TransactRequest) SetToAmount(v string) {
 	o.ToAmount = v
-}
-
-// GetToToken returns the ToToken field value
-func (o *TransactRequest) GetToToken() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.ToToken
-}
-
-// GetToTokenOk returns a tuple with the ToToken field value
-// and a boolean to check if the value has been set.
-func (o *TransactRequest) GetToTokenOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.ToToken, true
-}
-
-// SetToToken sets field value
-func (o *TransactRequest) SetToToken(v string) {
-	o.ToToken = v
 }
 
 // GetBeneficiaryPubkey returns the BeneficiaryPubkey field value
@@ -331,6 +283,54 @@ func (o *TransactRequest) SetOriginatorPubkey(v string) {
 	o.OriginatorPubkey = v
 }
 
+// GetSourceAsset returns the SourceAsset field value
+func (o *TransactRequest) GetSourceAsset() TransactRequestSourceAsset {
+	if o == nil {
+		var ret TransactRequestSourceAsset
+		return ret
+	}
+
+	return o.SourceAsset
+}
+
+// GetSourceAssetOk returns a tuple with the SourceAsset field value
+// and a boolean to check if the value has been set.
+func (o *TransactRequest) GetSourceAssetOk() (*TransactRequestSourceAsset, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.SourceAsset, true
+}
+
+// SetSourceAsset sets field value
+func (o *TransactRequest) SetSourceAsset(v TransactRequestSourceAsset) {
+	o.SourceAsset = v
+}
+
+// GetDestinyAsset returns the DestinyAsset field value
+func (o *TransactRequest) GetDestinyAsset() TransactRequestSourceAsset {
+	if o == nil {
+		var ret TransactRequestSourceAsset
+		return ret
+	}
+
+	return o.DestinyAsset
+}
+
+// GetDestinyAssetOk returns a tuple with the DestinyAsset field value
+// and a boolean to check if the value has been set.
+func (o *TransactRequest) GetDestinyAssetOk() (*TransactRequestSourceAsset, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.DestinyAsset, true
+}
+
+// SetDestinyAsset sets field value
+func (o *TransactRequest) SetDestinyAsset(v TransactRequestSourceAsset) {
+	o.DestinyAsset = v
+}
+
 func (o TransactRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -349,11 +349,11 @@ func (o TransactRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize["fromDLTNetworkID"] = o.FromDLTNetworkID
 	toSerialize["toDLTNetworkID"] = o.ToDLTNetworkID
 	toSerialize["fromAmount"] = o.FromAmount
-	toSerialize["fromToken"] = o.FromToken
 	toSerialize["toAmount"] = o.ToAmount
-	toSerialize["toToken"] = o.ToToken
 	toSerialize["beneficiaryPubkey"] = o.BeneficiaryPubkey
 	toSerialize["originatorPubkey"] = o.OriginatorPubkey
+	toSerialize["sourceAsset"] = o.SourceAsset
+	toSerialize["destinyAsset"] = o.DestinyAsset
 	return toSerialize, nil
 }
 

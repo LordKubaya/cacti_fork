@@ -79,6 +79,8 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
   private BLOApplication?: Express;
   private BLOServer?: http.Server;
   private BLODispatcher?: BLODispatcher;
+  private GOLApplication?: Express;
+  private GOLServer?: http.Server;
   private readonly OAS: JsonObject;
   public OAPIServerEnabled: boolean = false;
 
@@ -129,6 +131,12 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
       networks: options.bridgesConfig ? options.bridgesConfig : [],
     };
 
+    this.bridgesManager = new SATPBridgesManager(bridgesManagerOptions);
+
+    if (!this.bridgesManager) {
+      throw new Error("BridgesManager is not defined");
+    }
+
     if (this.config.gid) {
       this.logger.info(
         "Initializing gateway connection manager with seed gateways",
@@ -138,12 +146,6 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
       );
     } else {
       throw new Error("GatewayIdentity is not defined");
-    }
-
-    this.bridgesManager = new SATPBridgesManager(bridgesManagerOptions);
-
-    if (!this.bridgesManager) {
-      throw new Error("BridgesManager is not defined");
     }
 
     this.instanceId = uuidv4();
@@ -258,6 +260,7 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
     if (!pluginOptions.gid) {
       pluginOptions.gid = {
         id: id,
+        pubKey: bufArray2HexStr(pluginOptions.keyPair.publicKey),
         name: id,
         version: [
           {
@@ -279,6 +282,12 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
 
       if (!pluginOptions.gid.name) {
         pluginOptions.gid.name = id;
+      }
+
+      if (!pluginOptions.gid.pubKey) {
+        pluginOptions.gid.pubKey = bufArray2HexStr(
+          pluginOptions.keyPair.publicKey,
+        );
       }
 
       if (!pluginOptions.gid.version) {
@@ -332,7 +341,7 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
   /**
    * Startup Methods
    * ----------------
-   * This section includes methods responsible for starting up the server and its associated services independently of the existance of a Hyperledger Cacti Node.
+   * This section includes methods responsible for starting up the server and its associated services independently of the existence of a Hyperledger Cacti Node.
    * It ensures that both the GatewayServer and BLOServer are initiated concurrently for efficient launch.
    */
   public async startup(): Promise<void> {
@@ -340,6 +349,8 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
     this.logger.trace(`Entering ${fnTag}`);
 
     await Promise.all([this.startupBLOServer(), this.setupOpenAPIServer()]);
+
+    await Promise.all([this.startupGOLServer()]);
   }
 
   protected async startupBLOServer(): Promise<void> {
@@ -384,6 +395,40 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
     });
   }
 
+  protected async startupGOLServer(): Promise<void> {
+    // starts GOL
+    const fnTag = `${this.className}#startupGOLServer()`;
+    this.logger.trace(`Entering ${fnTag}`);
+    this.logger.info("Starting GOL server");
+
+    const port =
+      this.options.gid?.gatewayServerPort ?? DEFAULT_PORT_GATEWAY_SERVER;
+
+    return new Promise(async (resolve, reject) => {
+      if (!this.GOLServer) {
+        this.GOLApplication = express();
+
+        this.gatewayOrchestrator.addGOLServer(this.GOLApplication!);
+        this.gatewayOrchestrator.startServices();
+
+        this.GOLServer = http.createServer(this.GOLApplication);
+
+        this.GOLServer.listen(port, () => {
+          this.logger.info(`GOL server started and listening on port ${port}`);
+          resolve();
+        });
+
+        this.GOLServer.on("error", (error) => {
+          this.logger.error(`GOL server failed to start: ${error}`);
+          reject(error);
+        });
+      } else {
+        this.logger.warn("GOL Server already running.");
+        resolve();
+      }
+    });
+  }
+
   public setupOpenAPIServer(): void {
     if (!this.OAPIServerEnabled) {
       this.logger.debug("OpenAPI server is disabled");
@@ -407,6 +452,7 @@ export class SATPGateway implements IPluginWebService, ICactusPlugin {
       swaggerUi.setup(this.OAS) as express.RequestHandler,
     );
   }
+
   /**
    * Gateway Connection Methods
    * --------------------------

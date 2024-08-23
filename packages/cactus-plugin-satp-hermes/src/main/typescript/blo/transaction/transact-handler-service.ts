@@ -13,6 +13,8 @@ import {
   SignatureAlgorithm,
 } from "../../generated/proto/cacti/satp/v02/common/message_pb";
 import { GatewayOrchestrator } from "../../gol/gateway-orchestrator";
+import { GatewayIdentity } from "../../core/types";
+import { SATP_VERSION } from "../../core/constants";
 
 // todo
 export async function ExecuteTransact(
@@ -25,10 +27,10 @@ export async function ExecuteTransact(
   const fn = "BLO#transact-handler-service#ExecuteTransact";
 
   //TODO check input for valid strings...
-  //add to gateway plugin
-  const senderGatewayOwnerId: string = gol.getSelfId();
+  const ourGateway: GatewayIdentity = gol.ourGateway;
+  const senderGatewayOwnerId: string = ourGateway.id;
 
-  //Get this data is set in satpManager GOL
+  //This data is set in satpManager GOL
   const serverGatewayPubkey: string = "";
   const receiverGatewayOwnerId: string = "";
 
@@ -41,16 +43,17 @@ export async function ExecuteTransact(
   const lockExpirationTime: bigint = BigInt(1000 * 60 * 5);
 
   const credentialProfile: CredentialProfile = CredentialProfile.UNSPECIFIED;
-  const loggingProfile: string = "";
-  const accessControlProfile: string = "";
+  const loggingProfile: string = "MOCK_LOGGING_PROFILE";
+  const accessControlProfile: string = "MOCK_ACCESS_CONTROL_PROFILE";
 
-  const bridgeContractOntology: string = req.bridgeContractOntology;
+  //todo verify ontologies signatures, validation, etc.
 
   let session = manager.getOrCreateSession(undefined, req.contextID);
   session = populateClientSessionData(
     session,
-    "v2.0",
-    req.fromToken,
+    SATP_VERSION,
+    req.sourceAsset.contractAddress,
+    req.destinyAsset.contractAddress,
     req.originatorPubkey,
     req.beneficiaryPubkey,
     req.fromDLTNetworkID,
@@ -63,9 +66,20 @@ export async function ExecuteTransact(
     lockType,
     lockExpirationTime,
     credentialProfile,
-    loggingProfile,
+    loggingProfile ? loggingProfile : "",
     accessControlProfile,
-    bridgeContractOntology,
+    req.sourceAsset.ontology,
+    req.destinyAsset.ontology,
+    req.fromAmount,
+    req.toAmount,
+    req.sourceAsset.mspId ? req.sourceAsset.mspId : "",
+    req.sourceAsset.channelName ? req.sourceAsset.channelName : "",
+    req.destinyAsset.mspId ? req.destinyAsset.mspId : "",
+    req.destinyAsset.channelName ? req.destinyAsset.channelName : "",
+    req.sourceAsset.contractName,
+    req.destinyAsset.contractName,
+    req.sourceAsset.owner,
+    req.destinyAsset.owner,
   );
   await manager.initiateTransfer(session);
 
