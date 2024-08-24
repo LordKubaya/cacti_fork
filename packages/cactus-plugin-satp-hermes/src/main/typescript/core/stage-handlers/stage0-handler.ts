@@ -18,6 +18,8 @@ import { Stage0ClientService } from "../stage-services/client/stage0-client-serv
 import {
   FailedToCreateMessageError,
   FailedToProcessError,
+  PubKeyError,
+  SenderGatewayNetworkIdError,
   SessionNotFoundError,
 } from "../errors/satp-handler-errors";
 
@@ -60,11 +62,12 @@ export class Stage0SATPHandler implements SATPHandler {
 
       let session = this.sessions.get(req.sessionId);
 
-      if (
-        req.senderGatewayNetworkId == "" ||
-        this.pubKeys.has(req.senderGatewayNetworkId)
-      ) {
-        throw new Error();
+      if (req.senderGatewayNetworkId == "") {
+        throw new SenderGatewayNetworkIdError(fnTag);
+      }
+
+      if (this.pubKeys.has(req.senderGatewayNetworkId)) {
+        throw new PubKeyError(fnTag);
       }
 
       session = await this.serverService.checkNewSessionRequest(
@@ -144,7 +147,7 @@ export class Stage0SATPHandler implements SATPHandler {
       const session = this.sessions.get(sessionId);
 
       if (!session) {
-        throw new Error(`${fnTag}, Session not found`);
+        throw new SessionNotFoundError(fnTag);
       }
 
       const message = await this.clientService.newSessionRequest(session);
@@ -171,7 +174,7 @@ export class Stage0SATPHandler implements SATPHandler {
       const session = this.sessions.get(sessionId);
 
       if (!session) {
-        throw new Error(`${fnTag}, Session not found`);
+        throw new SessionNotFoundError(fnTag);
       }
 
       const newSession = await this.clientService.checkNewSessionResponse(

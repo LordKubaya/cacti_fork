@@ -42,7 +42,6 @@ import { SatpStage2Service } from "../generated/proto/cacti/satp/v02/stage_2_con
 import { SatpStage3Service } from "../generated/proto/cacti/satp/v02/stage_3_connect";
 import { PromiseClient as PromiseConnectClient } from "@connectrpc/connect";
 import { SatpStage0Service } from "../generated/proto/cacti/satp/v02/stage_0_connect";
-import { Empty } from "@bufbuild/protobuf";
 
 export interface ISATPManagerOptions {
   logLevel?: LogLevelDesc;

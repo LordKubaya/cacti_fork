@@ -23,3 +23,15 @@ export class FailedToProcessError extends SATPInternalError {
     super(`${tag}, failed to process: ${message}`, 500);
   }
 }
+
+export class SenderGatewayNetworkIdError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, senderGatewayNetworkId is empty`, 500);
+  }
+}
+
+export class PubKeyError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, pubKey not found`, 500);
+  }
+}

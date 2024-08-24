@@ -10,8 +10,17 @@ import {
 } from "../../../generated/proto/cacti/satp/v02/stage_0_pb";
 import { SATPBridgesManager } from "../../../gol/satp-bridges-manager";
 import {
+  GatewayNetworkIdError,
+  HashError,
+  LedgerAssetError,
+  LedgerAssetIdError,
   MissingBridgeManagerError,
+  OntologyContractError,
   SessionError,
+  SessionIdError,
+  SessionMissMatchError,
+  SignatureVerificationError,
+  TransferContextIdError,
 } from "../../errors/satp-service-errors";
 import { SATPSession } from "../../satp-session";
 import {
@@ -117,18 +126,22 @@ export class Stage0ClientService extends SATPService {
     const sessionData = session.getClientSessionData();
 
     if (response.sessionId == "") {
-      throw new Error(`${fnTag}, Session ID is missing`);
+      throw new SessionIdError(fnTag);
     }
 
     if (
       response.contextId == "" ||
       response.contextId != sessionData.transferContextId
     ) {
-      throw new Error(`${fnTag}, Context ID is missing`);
+      throw new TransferContextIdError(
+        fnTag,
+        response.contextId,
+        sessionData.transferContextId,
+      );
     }
 
     if (response.serverSignature == "") {
-      throw new Error(`${fnTag}, Server Signature is missing`);
+      throw new SignatureVerificationError(fnTag);
     }
 
     if (
@@ -143,21 +156,25 @@ export class Stage0ClientService extends SATPService {
       response.senderGatewayNetworkId == "" ||
       response.senderGatewayNetworkId != sessionData.senderGatewayNetworkId
     ) {
-      throw new Error();
+      throw new GatewayNetworkIdError(fnTag);
     }
 
     if (
-      request.hashPreviousMessage !=
+      response.hashPreviousMessage !=
       getMessageHash(sessionData, MessageType.NEW_SESSION_REQUEST)
     ) {
-      throw new Error(`${fnTag}, Hash of previous message does not match`);
+      throw new HashError(
+        fnTag,
+        response.hashPreviousMessage,
+        getMessageHash(sessionData, MessageType.NEW_SESSION_REQUEST),
+      );
     }
 
     signatureVerifier(fnTag, this.Signer, response, sessionData);
 
     if (sessionData.id != response.sessionId) {
-      if (!sessionIds.includes(response.sessionId)) {
-        throw new Error(`${fnTag}, Session ID already used`);
+      if (sessionIds.includes(response.sessionId)) {
+        throw new SessionMissMatchError(fnTag);
       }
 
       session = new SATPSession({
@@ -192,23 +209,24 @@ export class Stage0ClientService extends SATPService {
     const sessionData = session.getClientSessionData();
 
     if (sessionData.receiverContractOntology == "") {
-      throw new Error();
+      //TODO check ontology
+      throw new OntologyContractError(fnTag);
     }
 
     if (sessionData.sourceLedgerAssetId == "") {
-      throw new Error();
+      throw new LedgerAssetIdError(fnTag);
     }
 
     if (sessionData.senderGatewayNetworkId == "") {
-      throw new Error();
+      throw new GatewayNetworkIdError(fnTag);
     }
 
     if (sessionData.senderAsset == undefined) {
-      throw new Error();
+      throw new LedgerAssetError(fnTag);
     }
 
     if (sessionData.receiverAsset == undefined) {
-      throw new Error();
+      throw new LedgerAssetError(fnTag);
     }
 
     await this.wrapToken(
@@ -277,7 +295,7 @@ export class Stage0ClientService extends SATPService {
 
       this.Log.debug(`${fnTag}, Wrap Asset ID: ${assetId} amount: ${amount}`);
       if (assetId == undefined) {
-        throw new Error(`${fnTag}, Asset ID is missing`);
+        throw new LedgerAssetIdError(fnTag);
       }
 
       const bridge = this.bridgeManager.getBridge(
