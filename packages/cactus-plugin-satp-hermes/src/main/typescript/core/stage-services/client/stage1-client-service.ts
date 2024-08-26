@@ -26,7 +26,13 @@ import {
 } from "../satp-service";
 import { commonBodyVerifier, signatureVerifier } from "../data-verifier";
 import { ACCEPTANCE } from "../../../generated/proto/cacti/satp/v02/common/session_pb";
-import { SessionError } from "../../errors/satp-service-errors";
+import {
+  HashError,
+  SessionError,
+  TokenIdMissingError,
+  TransferContextIdError,
+  WrapAssertionClaimError,
+} from "../../errors/satp-service-errors";
 import { PreSATPTransferResponse } from "../../../generated/proto/cacti/satp/v02/stage_0_pb";
 
 export class Stage1ClientService extends SATPService {
@@ -292,22 +298,30 @@ export class Stage1ClientService extends SATPService {
       response.contextId == "" ||
       response.contextId != sessionData.transferContextId
     ) {
-      throw new Error(`${fnTag}, Context ID is missing`);
+      throw new TransferContextIdError(
+        fnTag,
+        response.contextId,
+        sessionData.transferContextId,
+      );
     }
 
     if (response.wrapAssertionClaim == undefined) {
-      throw new Error();
+      throw new WrapAssertionClaimError(fnTag);
     }
 
     if (response.recipientTokenId == "") {
-      throw new Error();
+      throw new TokenIdMissingError(fnTag);
     }
 
     if (
       response.hashPreviousMessage !=
-      getMessageHash(sessionData, MessageType.NEW_SESSION_REQUEST)
+      getMessageHash(sessionData, MessageType.PRE_SATP_TRANSFER_REQUEST)
     ) {
-      throw new Error(`${fnTag}, Hash of previous message does not match`);
+      throw new HashError(
+        fnTag,
+        response.hashPreviousMessage,
+        getMessageHash(sessionData, MessageType.PRE_SATP_TRANSFER_REQUEST),
+      );
     }
 
     signatureVerifier(fnTag, this.Signer, response, sessionData);

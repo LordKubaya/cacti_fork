@@ -9,6 +9,7 @@ import {
   PreSATPTransferRequest,
 } from "../../../generated/proto/cacti/satp/v02/stage_0_pb";
 import { SATPBridgesManager } from "../../../gol/satp-bridges-manager";
+import { FailedToProcessError } from "../../errors/satp-handler-errors";
 import {
   GatewayNetworkIdError,
   HashError,
@@ -149,7 +150,7 @@ export class Stage0ClientService extends SATPService {
       response.recipientGatewayNetworkId !=
         sessionData.recipientGatewayNetworkId
     ) {
-      throw new Error();
+      throw new GatewayNetworkIdError(fnTag);
     }
 
     if (
@@ -229,14 +230,6 @@ export class Stage0ClientService extends SATPService {
       throw new LedgerAssetError(fnTag);
     }
 
-    await this.wrapToken(
-      session,
-      protoToAsset(
-        sessionData.senderAsset,
-        sessionData.senderGatewayNetworkId as SupportedChain,
-      ),
-    );
-
     const preSATPTransferRequest = new PreSATPTransferRequest();
     preSATPTransferRequest.sessionId = sessionData.id;
     preSATPTransferRequest.contextId = sessionData.transferContextId;
@@ -248,6 +241,8 @@ export class Stage0ClientService extends SATPService {
       sessionData.recipientGatewayNetworkId;
     preSATPTransferRequest.senderAsset = sessionData.senderAsset;
     preSATPTransferRequest.receiverAsset = sessionData.receiverAsset;
+    preSATPTransferRequest.wrapAssertionClaim =
+      sessionData.senderWrapAssertionClaim;
     preSATPTransferRequest.hashPreviousMessage = getMessageHash(
       sessionData,
       MessageType.NEW_SESSION_RESPONSE,
@@ -276,7 +271,7 @@ export class Stage0ClientService extends SATPService {
     return preSATPTransferRequest;
   }
 
-  private async wrapToken(session: SATPSession, token: Asset): Promise<void> {
+  public async wrapToken(session: SATPSession): Promise<void> {
     const stepTag = `wrapToken()`;
     const fnTag = `${this.getServiceIdentifier()}#${stepTag}`;
     try {
@@ -289,6 +284,19 @@ export class Stage0ClientService extends SATPService {
       session.verify(fnTag, SessionType.CLIENT);
 
       const sessionData = session.getClientSessionData();
+
+      if (sessionData.senderGatewayNetworkId == "") {
+        throw new GatewayNetworkIdError(fnTag);
+      }
+
+      if (sessionData.senderAsset == undefined) {
+        throw new LedgerAssetError(fnTag);
+      }
+
+      const token: Asset = protoToAsset(
+        sessionData.senderAsset,
+        sessionData.senderGatewayNetworkId as SupportedChain,
+      );
 
       const assetId = token.tokenId;
       const amount = token.amount.toString();
@@ -310,7 +318,7 @@ export class Stage0ClientService extends SATPService {
         sign(this.Signer, sessionData.senderWrapAssertionClaim.receipt),
       );
     } catch (error) {
-      throw new Error(`${fnTag}, Failed to process Wrap Asset ${error}`);
+      throw new FailedToProcessError(fnTag, "WrapToken");
     }
   }
 }

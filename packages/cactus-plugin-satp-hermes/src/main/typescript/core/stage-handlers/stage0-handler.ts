@@ -99,7 +99,7 @@ export class Stage0SATPHandler implements SATPHandler {
     const stepTag = `PreSATPTransferImplementation()`;
     const fnTag = `${this.getHandlerIdentifier()}#${stepTag}`;
     try {
-      this.Log.debug(`${fnTag},  PreSATPTransfer...`);
+      this.Log.debug(`${fnTag}, PreSATPTransfer...`);
       this.Log.debug(`${fnTag}, Request: ${req}, Context: ${context}`);
 
       const session = this.sessions.get(req.sessionId);
@@ -109,6 +109,8 @@ export class Stage0SATPHandler implements SATPHandler {
       }
 
       await this.serverService.checkPreSATPTransferRequest(req, session);
+
+      await this.serverService.wrapToken(session);
 
       const message = await this.serverService.preSATPTransferResponse(
         req,
@@ -187,6 +189,8 @@ export class Stage0SATPHandler implements SATPHandler {
         this.sessions.set(newSession.getSessionId(), newSession);
         this.sessions.delete(session.getSessionId());
       }
+
+      await this.clientService.wrapToken(session);
 
       const message = await this.clientService.preSATPTransferRequest(session);
 

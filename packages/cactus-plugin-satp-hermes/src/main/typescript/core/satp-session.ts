@@ -115,15 +115,15 @@ export class SATPSession {
     contextId: string,
   ): void {
     if (type == SessionType.SERVER) {
-      if (this.serverSessionData == undefined) {
+      if (this.serverSessionData !== undefined) {
         throw new Error(
-          `${SATPSession.CLASS_NAME}#createSessionData(), serverSessionData is undefined`,
+          `${SATPSession.CLASS_NAME}#createSessionData(), serverSessionData already defined`,
         );
       }
     } else if (type == SessionType.CLIENT) {
-      if (this.clientSessionData == undefined) {
+      if (this.clientSessionData !== undefined) {
         throw new Error(
-          `${SATPSession.CLASS_NAME}#createSessionData(), clientSessionData is undefined`,
+          `${SATPSession.CLASS_NAME}#createSessionData(), clientSessionData already defined`,
         );
       }
     } else {

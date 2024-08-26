@@ -33,8 +33,11 @@ import {
   BurnAssertionClaimError,
   MintAssertionClaimError,
   MissingBridgeManagerError,
+  MissingRecipientError,
   SessionError,
+  TokenIdMissingError,
 } from "../../errors/satp-service-errors";
+import { FailedToProcessError } from "../../errors/satp-handler-errors";
 
 export class Stage3ServerService extends SATPService {
   public static readonly SATP_STAGE = "3";
@@ -404,7 +407,7 @@ export class Stage3ServerService extends SATPService {
         `${fnTag}, Mint Asset ID: ${assetId} amount: ${amount}`,
       );
       if (assetId == undefined) {
-        throw new Error(`${fnTag}, Asset ID is missing`);
+        throw new TokenIdMissingError(fnTag);
       }
 
       const bridge = this.bridgeManager.getBridge(
@@ -420,7 +423,7 @@ export class Stage3ServerService extends SATPService {
         sign(this.Signer, sessionData.mintAssertionClaim.receipt),
       );
     } catch (error) {
-      throw new Error(`${fnTag}, Failed to process Mint Asset ${error}`);
+      throw new FailedToProcessError(fnTag, "MintAsset");
     }
   }
 
@@ -443,13 +446,13 @@ export class Stage3ServerService extends SATPService {
       const recipient = sessionData.transferInitClaims?.beneficiaryPubkey;
 
       if (recipient == undefined) {
-        throw new Error(`${fnTag}, Recipient is missing`);
+        throw new MissingRecipientError(fnTag);
       }
       this.logger.debug(
         `${fnTag}, Assign Asset ID: ${assetId} amount: ${amount} recipient: ${recipient}`,
       );
       if (assetId == undefined) {
-        throw new Error(`${fnTag}, Asset ID is missing`);
+        throw new TokenIdMissingError(fnTag);
       }
 
       const bridge = this.bridgeManager.getBridge(
@@ -466,7 +469,7 @@ export class Stage3ServerService extends SATPService {
         sign(this.Signer, sessionData.assignmentAssertionClaim.receipt),
       );
     } catch (error) {
-      throw new Error(`${fnTag}, Failed to process Assign Asset ${error}`);
+      throw new FailedToProcessError(fnTag, "AssignAsset");
     }
   }
 }

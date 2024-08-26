@@ -32,6 +32,12 @@ export class SessionDataNotLoadedCorrectlyError extends SATPInternalError {
   }
 }
 
+export class SessionDataNotAvailableError extends SATPInternalError {
+  constructor(tag: string, type: string) {
+    super(`${tag}, ${type} session data not available`, 500);
+  }
+}
+
 export class SessionCompletedError extends SATPInternalError {
   constructor(tag: string) {
     super(`${tag}, session data already completed`, 500);
@@ -200,5 +206,35 @@ export class LedgerAssetIdError extends SATPInternalError {
 export class LedgerAssetError extends SATPInternalError {
   constructor(tag: string) {
     super(`${tag}, ledgerAsset missing`, 400);
+  }
+}
+
+export class NetworkIdError extends SATPInternalError {
+  constructor(tag: string, type: string) {
+    super(`${tag}, ${type} networkId missing or missmatch`, 400);
+  }
+}
+
+export class AssetMissing extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, asset missing`, 400);
+  }
+}
+
+export class WrapAssertionClaimError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, Wrap Assertion Claim missing or faulty`, 400);
+  }
+}
+
+export class TokenIdMissingError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, tokenId missing`, 400);
+  }
+}
+
+export class MissingRecipientError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, Recipient is missing`, 400);
   }
 }

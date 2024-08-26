@@ -34,7 +34,9 @@ import {
   MintAssertionClaimError,
   MissingBridgeManagerError,
   SessionError,
+  TokenIdMissingError,
 } from "../../errors/satp-service-errors";
+import { FailedToProcessError } from "../../errors/satp-handler-errors";
 
 export class Stage3ClientService extends SATPService {
   public static readonly SATP_STAGE = "3";
@@ -471,7 +473,7 @@ export class Stage3ClientService extends SATPService {
 
       this.Log.debug(`${fnTag}, Burn Asset ID: ${assetId} amount: ${amount}`);
       if (assetId == undefined) {
-        throw new Error(`${fnTag}, Asset ID is missing`);
+        throw new TokenIdMissingError(fnTag);
       }
 
       const bridge = this.bridgeManager.getBridge(
@@ -487,7 +489,7 @@ export class Stage3ClientService extends SATPService {
         sign(this.Signer, sessionData.burnAssertionClaim.receipt),
       );
     } catch (error) {
-      throw new Error(`${fnTag}, Failed to process Burn Asset ${error}`);
+      throw new FailedToProcessError(fnTag, "BurnAsset");
     }
   }
 }

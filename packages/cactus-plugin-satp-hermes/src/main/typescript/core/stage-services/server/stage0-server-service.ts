@@ -1,4 +1,9 @@
-import { bufArray2HexStr, sign, verifySignature } from "../../../gateway-utils";
+import {
+  bufArray2HexStr,
+  getHash,
+  sign,
+  verifySignature,
+} from "../../../gateway-utils";
 import {
   MessageType,
   WrapAssertionClaim,
@@ -12,8 +17,15 @@ import {
 } from "../../../generated/proto/cacti/satp/v02/stage_0_pb";
 import { SATPBridgesManager } from "../../../gol/satp-bridges-manager";
 import {
+  AssetMissing,
+  GatewayNetworkIdError,
+  LedgerAssetError,
   MissingBridgeManagerError,
+  NetworkIdError,
+  SessionDataNotAvailableError,
   SessionError,
+  SessionIdError,
+  SignatureMissingError,
   SignatureVerificationError,
 } from "../../errors/satp-service-errors";
 import { SATPSession } from "../../satp-session";
@@ -30,8 +42,7 @@ import {
   ISATPServerServiceOptions,
   ISATPServiceOptions,
 } from "../satp-service";
-import { compareProtoAsset, protoToAsset } from "../service-utils";
-
+import { protoToAsset } from "../service-utils";
 export class Stage0ServerService extends SATPService {
   public static readonly SATP_STAGE = "0";
   public static readonly SERVICE_TYPE = SATPServiceType.Server;
@@ -70,20 +81,20 @@ export class Stage0ServerService extends SATPService {
       throw new Error(`${fnTag}, Request is undefined`);
     }
 
-    if (request.clientSignature == undefined) {
-      throw new Error(`${fnTag}, Request client signature is undefined`);
+    if (request.clientSignature == "") {
+      throw new SignatureMissingError(fnTag);
     }
 
     if (request.sessionId == "") {
-      throw new Error(`${fnTag}, Request session ID is undefined`);
+      throw new SessionIdError(fnTag);
     }
 
     if (request.senderGatewayNetworkId == "") {
-      throw new Error();
+      throw new NetworkIdError(fnTag, "Sender");
     }
 
     if (request.recipientGatewayNetworkId == "") {
-      throw new Error();
+      throw new NetworkIdError(fnTag, "Recipient");
     }
 
     if (!verifySignature(this.Signer, request, clientPubKey)) {
@@ -98,7 +109,7 @@ export class Stage0ServerService extends SATPService {
         server: true,
         client: false,
       });
-    } else if (session.getServerSessionData() == undefined) {
+    } else if (!session.hasServerSessionData()) {
       this.Log.debug(`${fnTag}, Session does not have server session data`);
       session.createSessionData(
         SessionType.SERVER,
@@ -120,6 +131,9 @@ export class Stage0ServerService extends SATPService {
     const newSessionData = session.getServerSessionData();
 
     newSessionData.clientGatewayPubkey = clientPubKey;
+    newSessionData.senderGatewayNetworkId = request.senderGatewayNetworkId;
+    newSessionData.recipientGatewayNetworkId =
+      request.recipientGatewayNetworkId;
 
     saveSignature(
       newSessionData,
@@ -127,7 +141,7 @@ export class Stage0ServerService extends SATPService {
       request.clientSignature,
     );
 
-    saveHash(newSessionData, MessageType.NEW_SESSION_REQUEST, fnTag);
+    saveHash(newSessionData, MessageType.NEW_SESSION_REQUEST, getHash(request));
 
     this.Log.info(`${fnTag}, NewSessionRequest passed all checks.`);
     return session;
@@ -144,7 +158,9 @@ export class Stage0ServerService extends SATPService {
       throw new SessionError(fnTag);
     }
 
-    session.verify(fnTag, SessionType.SERVER);
+    if (!session.hasServerSessionData()) {
+      throw new Error(`${fnTag}, Session Data is missing`);
+    }
 
     const sessionData = session.getServerSessionData();
 
@@ -172,7 +188,7 @@ export class Stage0ServerService extends SATPService {
 
     if (
       request.hashPreviousMessage !=
-      getMessageHash(sessionData, MessageType.NEW_SESSION_REQUEST)
+      getMessageHash(sessionData, MessageType.NEW_SESSION_RESPONSE)
     ) {
       throw new Error(`${fnTag}, Hash of previous message does not match`);
     }
@@ -187,13 +203,17 @@ export class Stage0ServerService extends SATPService {
       throw new Error(`${fnTag}, Client Signature is invalid`);
     }
 
-    if (!compareProtoAsset(request.senderAsset, sessionData.senderAsset!)) {
-      throw new Error(`${fnTag}, Sender Asset does not match`);
+    if (request.senderAsset == undefined) {
+      throw new Error(`${fnTag}, Sender Asset is missing`);
     }
 
-    if (!compareProtoAsset(request.receiverAsset, sessionData.receiverAsset!)) {
-      throw new Error(`${fnTag}, Receiver Asset does not match`);
+    sessionData.senderAsset = request.senderAsset;
+
+    if (request.receiverAsset == undefined) {
+      throw new Error(`${fnTag}, Receiver Asset is missing`);
     }
+
+    sessionData.receiverAsset = request.receiverAsset;
 
     if (request.wrapAssertionClaim == undefined) {
       throw new Error(`${fnTag}, Wrap Assertion Claim is missing`);
@@ -212,7 +232,11 @@ export class Stage0ServerService extends SATPService {
       request.clientSignature,
     );
 
-    saveHash(sessionData, MessageType.PRE_SATP_TRANSFER_REQUEST, fnTag);
+    saveHash(
+      sessionData,
+      MessageType.PRE_SATP_TRANSFER_REQUEST,
+      getHash(request),
+    );
 
     this.Log.info(`${fnTag}, PreSATPTransferRequest passed all checks.`);
   }
@@ -226,6 +250,10 @@ export class Stage0ServerService extends SATPService {
 
     if (session == undefined) {
       throw new SessionError(fnTag);
+    }
+
+    if (!session.hasServerSessionData()) {
+      throw new SessionDataNotAvailableError("server", fnTag);
     }
     const sessionData = session.getServerSessionData();
 
@@ -278,7 +306,9 @@ export class Stage0ServerService extends SATPService {
       throw new SessionError(fnTag);
     }
 
-    session.verify(fnTag, SessionType.SERVER);
+    if (!session.hasServerSessionData()) {
+      throw new SessionDataNotAvailableError("server", fnTag);
+    }
 
     const sessionData = session.getServerSessionData();
 
@@ -293,21 +323,13 @@ export class Stage0ServerService extends SATPService {
     );
 
     if (request.receiverAsset == undefined) {
-      throw new Error(`${fnTag}, Receiver Asset is missing`);
+      throw new AssetMissing(fnTag);
     }
 
     sessionData.receiverAsset!.tokenId = createAssetId(
       request.contextId,
       request.receiverAsset.tokenType,
       sessionData.senderGatewayNetworkId,
-    );
-
-    await this.wrapToken(
-      session,
-      protoToAsset(
-        request.receiverAsset,
-        sessionData.recipientGatewayNetworkId,
-      ),
     );
 
     preSATPTransferResponse.wrapAssertionClaim =
@@ -334,7 +356,7 @@ export class Stage0ServerService extends SATPService {
     return preSATPTransferResponse;
   }
 
-  async wrapToken(session: SATPSession, token: Asset): Promise<void> {
+  public async wrapToken(session: SATPSession): Promise<void> {
     const stepTag = `wrapToken()`;
     const fnTag = `${this.getServiceIdentifier()}#${stepTag}`;
     try {
@@ -347,6 +369,19 @@ export class Stage0ServerService extends SATPService {
       session.verify(fnTag, SessionType.CLIENT);
 
       const sessionData = session.getClientSessionData();
+
+      if (sessionData.recipientGatewayNetworkId == "") {
+        throw new GatewayNetworkIdError(fnTag);
+      }
+
+      if (sessionData.receiverAsset == undefined) {
+        throw new LedgerAssetError(fnTag);
+      }
+
+      const token: Asset = protoToAsset(
+        sessionData.receiverAsset,
+        sessionData.recipientGatewayNetworkId,
+      );
 
       const assetId = sessionData?.transferInitClaims?.digitalAssetId;
       const amount = sessionData?.transferInitClaims?.amountFromOriginator;

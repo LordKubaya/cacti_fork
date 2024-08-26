@@ -29,6 +29,7 @@ import {
   LockAssertionClaimFormatError,
   SessionError,
 } from "../../errors/satp-service-errors";
+import { FailedToProcessError } from "../../errors/satp-handler-errors";
 
 export class Stage2ClientService extends SATPService {
   public static readonly SATP_STAGE = "2";
@@ -230,7 +231,7 @@ export class Stage2ClientService extends SATPService {
         sign(this.Signer, sessionData.lockAssertionClaim.receipt),
       );
     } catch (error) {
-      throw new Error(`${fnTag}, Failed to process Lock Asset ${error}`);
+      throw new FailedToProcessError(fnTag, "LockAsset");
     }
   }
 }
