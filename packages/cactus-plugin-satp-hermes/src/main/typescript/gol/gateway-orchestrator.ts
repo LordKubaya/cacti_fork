@@ -17,6 +17,10 @@ import {
   Transport as ConnectTransport,
 } from "@connectrpc/connect";
 
+import { Express } from "express";
+
+import { expressConnectMiddleware } from "@connectrpc/connect-express";
+
 import { SatpStage0Service } from "../generated/proto/cacti/satp/v02/stage_0_connect";
 import { SatpStage1Service } from "../generated/proto/cacti/satp/v02/stage_1_connect";
 import { SatpStage2Service } from "../generated/proto/cacti/satp/v02/stage_2_connect";
@@ -31,16 +35,19 @@ export interface IGatewayOrchestratorOptions {
 
 //import { COREDispatcher, COREDispatcherOptions } from "../core/dispatcher";
 import { createPromiseClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-node";
+import { createGrpcWebTransport } from "@connectrpc/connect-node";
 import {
   getGatewaySeeds,
   resolveGatewayID,
 } from "../network-identification/resolve-gateway";
+import { SATPHandler, Stage } from "../types/satp-protocol";
 
 export class GatewayOrchestrator {
   public readonly label = "GatewayOrchestrator";
+  private expressServer: Express | undefined;
   protected localGateway: GatewayIdentity;
   private counterPartyGateways: Map<string, GatewayIdentity> = new Map();
+  private handlers: Map<string, SATPHandler> = new Map();
 
   // TODO!: add logic to manage sessions (parallelization, user input, freeze, unfreeze, rollback, recovery)
   private channels: Map<string, GatewayChannel> = new Map();
@@ -74,6 +81,11 @@ export class GatewayOrchestrator {
       `Gateway Connection Manager bootstrapped with ${allCounterPartyGateways.length} gateways`,
     );
 
+    this.channels.set(
+      this.localGateway.id,
+      this.createChannel(this.localGateway),
+    );
+
     this.addGateways(allCounterPartyGateways);
     const numberGatewayChannels = this.connectToCounterPartyGateways();
     if (numberGatewayChannels > 0) {
@@ -88,12 +100,42 @@ export class GatewayOrchestrator {
     return this.localGateway;
   }
 
+  public addGOLServer(server: Express): void {
+    this.expressServer = server;
+  }
+
+  public startServices(): void {
+    for (const stage of this.handlers.keys()) {
+      this.logger.info(
+        `Setting up routes for stage ${`/${this.handlers.get(stage)!.getStage()}`}`,
+      );
+      this.expressServer!.use(
+        `/${this.handlers.get(stage)!.getStage()}`,
+        expressConnectMiddleware({
+          routes: this.handlers.get(stage)!.setupRouter,
+        }),
+      );
+    }
+  }
+
+  public addHandlers(handlers: Map<string, SATPHandler>): void {
+    this.handlers = handlers;
+  }
+
   async startupGatewayOrchestrator(): Promise<void> {
     if (this.counterPartyGateways.values.length === 0) {
       this.logger.info("No gateways to connect to");
       return;
     } else {
       this.connectToCounterPartyGateways();
+    }
+  }
+
+  public getGatewayIdentity(id: string): GatewayIdentity | undefined {
+    if (this.localGateway.id === id) {
+      return this.localGateway;
+    } else {
+      return this.counterPartyGateways.get(id);
     }
   }
 
@@ -107,7 +149,9 @@ export class GatewayOrchestrator {
       return channel.supportedDLTs.includes(dlt);
     });
     if (!channel) {
-      throw new Error(`No channel found for DLT ${dlt}`);
+      throw new Error(
+        `No channel found for DLT ${dlt} \n available channels: ${JSON.stringify(channels)}`,
+      );
     }
     return channel;
   }
@@ -124,6 +168,10 @@ export class GatewayOrchestrator {
 
   isInCounterPartyGateways(id: string): boolean {
     return this.counterPartyGateways.has(id);
+  }
+
+  getCounterPartyGateways(): Map<string, GatewayIdentity> {
+    return this.counterPartyGateways;
   }
 
   isInChannels(id: string): boolean {
@@ -163,7 +211,7 @@ export class GatewayOrchestrator {
       return 0;
     }
 
-    // get gateway identtiies from counterPartyGateways
+    // get gateway identities from counterPartyGateways
     const gatewaysToAdd = idsToAdd.map(
       (id) => this.counterPartyGateways.get(id)!,
     );
@@ -196,7 +244,9 @@ export class GatewayOrchestrator {
       clients: clients,
       supportedDLTs: identity.supportedDLTs,
     };
-
+    this.logger.info(
+      `Created channel to gateway ${identity.id} \n supported DLTs: ${identity.supportedDLTs}`,
+    );
     return channel;
   }
 
@@ -213,8 +263,50 @@ export class GatewayOrchestrator {
     identity: GatewayIdentity,
   ): Map<string, PromiseConnectClient<SATPServiceInstance>> {
     // one function for each client type; aggregate in array
-    const transport = createConnectTransport({
-      baseUrl: identity.address + ":" + identity.gatewayGrpcPort,
+    this.logger.debug(
+      `Creating clients for gateway ${JSON.stringify(identity)}`,
+    );
+    const transport0 = createGrpcWebTransport({
+      baseUrl:
+        identity.address +
+        ":" +
+        identity.gatewayServerPort +
+        `/${Stage.STAGE0}`,
+      httpVersion: "1.1",
+    });
+
+    this.logger.debug(
+      "Transport:" +
+        identity.address +
+        ":" +
+        identity.gatewayServerPort +
+        `/${Stage.STAGE0}`,
+    );
+
+    const transport1 = createGrpcWebTransport({
+      baseUrl:
+        identity.address +
+        ":" +
+        identity.gatewayServerPort +
+        `/${Stage.STAGE1}`,
+      httpVersion: "1.1",
+    });
+
+    const transport2 = createGrpcWebTransport({
+      baseUrl:
+        identity.address +
+        ":" +
+        identity.gatewayServerPort +
+        `/${Stage.STAGE2}`,
+      httpVersion: "1.1",
+    });
+
+    const transport3 = createGrpcWebTransport({
+      baseUrl:
+        identity.address +
+        ":" +
+        identity.gatewayServerPort +
+        `/${Stage.STAGE3}`,
       httpVersion: "1.1",
     });
 
@@ -223,10 +315,10 @@ export class GatewayOrchestrator {
       PromiseConnectClient<SATPServiceInstance>
     > = new Map();
 
-    clients.set("0", this.createStage0ServiceClient(transport));
-    clients.set("1", this.createStage1ServiceClient(transport));
-    clients.set("2", this.createStage2ServiceClient(transport));
-    clients.set("3", this.createStage3ServiceClient(transport));
+    clients.set("0", this.createStage0ServiceClient(transport0));
+    clients.set("1", this.createStage1ServiceClient(transport1));
+    clients.set("2", this.createStage2ServiceClient(transport2));
+    clients.set("3", this.createStage3ServiceClient(transport3));
 
     // todo perform healthcheck on startup; should be in stage 0
     return clients;

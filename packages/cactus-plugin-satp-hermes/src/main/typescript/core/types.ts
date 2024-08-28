@@ -53,7 +53,7 @@ export type GatewayChannel = {
 export type Address =
   | `http://${string}`
   | `https://${string}`
-  | `${number}.${number}.${number}.${number}.`;
+  | `${number}.${number}.${number}.${number}`;
 
 export type GatewayIdentity = {
   id: string;

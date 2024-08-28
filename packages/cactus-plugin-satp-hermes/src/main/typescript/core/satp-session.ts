@@ -18,12 +18,28 @@ import {
   Stage3Timestamps,
 } from "../generated/proto/cacti/satp/v02/common/session_pb";
 import {
+  AccessControlProfileError,
+  ClientGatewayPubkeyError,
+  CredentialProfileError,
+  DigitalAssetIdError,
+  GatewayNetworkIdError,
+  lockExpirationTimeError,
+  LockTypeError,
+  LoggingProfileError,
+  PubKeyError,
   SATPVersionError,
+  ServerGatewayPubkeyError,
   SessionCompletedError,
   SessionDataNotLoadedCorrectlyError,
+  SessionIdError,
+  SignatureAlgorithmError,
+  TransferContextIdError,
 } from "./errors/satp-service-errors";
 import { SATP_VERSION } from "./constants";
-import { LockType } from "../generated/proto/cacti/satp/v02/common/message_pb";
+import {
+  LockType,
+  SignatureAlgorithm,
+} from "../generated/proto/cacti/satp/v02/common/message_pb";
 import { SessionType } from "./session-utils";
 
 // Define interface on protos
@@ -161,55 +177,95 @@ export class SATPSession {
 
   public verify(tag: string, type: SessionType): void {
     let sessionData: SessionData | undefined;
-    if (type == SessionType.SERVER) {
-      sessionData = this.getServerSessionData();
-    } else if (type == SessionType.CLIENT) {
-      sessionData = this.getClientSessionData();
-    } else {
-      throw new Error(
-        `${SATPSession.CLASS_NAME}#verify(), sessionData type is not valid`,
-      );
-    }
+    try {
+      if (type == SessionType.SERVER) {
+        sessionData = this.getServerSessionData();
+      } else if (type == SessionType.CLIENT) {
+        sessionData = this.getClientSessionData();
+      } else {
+        throw new Error(
+          `${SATPSession.CLASS_NAME}#verify(), sessionData type is not valid`,
+        );
+      }
 
-    if (sessionData == undefined) {
-      throw new SessionDataNotLoadedCorrectlyError(tag, "undefined");
-    }
+      if (sessionData == undefined) {
+        throw new SessionDataNotLoadedCorrectlyError(tag, "undefined");
+      }
 
-    if (sessionData.completed) {
-      throw new SessionCompletedError("Session already completed");
-    }
-
-    if (
-      sessionData.version == "" ||
-      sessionData.id == "" ||
-      sessionData.digitalAssetId == "" ||
-      sessionData.originatorPubkey == "" ||
-      sessionData.beneficiaryPubkey == "" ||
-      sessionData.senderGatewayNetworkId == "" ||
-      sessionData.recipientGatewayNetworkId == "" ||
-      sessionData.clientGatewayPubkey == "" ||
-      sessionData.serverGatewayPubkey == "" ||
-      sessionData.senderGatewayOwnerId == "" ||
-      sessionData.receiverGatewayOwnerId == "" ||
-      // sessionData.maxRetries == undefined ||
-      // sessionData.maxTimeout == undefined ||
-      sessionData.senderGatewayNetworkId == "" ||
-      sessionData.signatureAlgorithm == undefined ||
-      sessionData.lockType == LockType.UNSPECIFIED ||
-      sessionData.lockExpirationTime == BigInt(0) ||
-      sessionData.credentialProfile == undefined ||
-      sessionData.loggingProfile == "" ||
-      sessionData.accessControlProfile == "" ||
-      // sessionData.lastSequenceNumber == BigInt(0) ||
-      sessionData.transferContextId == ""
-    ) {
+      if (sessionData.completed) {
+        throw new SessionCompletedError("Session already completed");
+      }
+      if (sessionData.id == "") {
+        throw new SessionIdError(tag);
+      }
+      if (sessionData.digitalAssetId == "") {
+        throw new DigitalAssetIdError(tag);
+      }
+      if (sessionData.originatorPubkey == "") {
+        throw new PubKeyError(tag);
+      }
+      if (sessionData.beneficiaryPubkey == "") {
+        throw new PubKeyError(tag);
+      }
+      if (sessionData.senderGatewayNetworkId == "") {
+        throw new GatewayNetworkIdError(tag);
+      }
+      if (sessionData.recipientGatewayNetworkId == "") {
+        throw new GatewayNetworkIdError(tag);
+      }
+      if (sessionData.clientGatewayPubkey == "") {
+        throw new ClientGatewayPubkeyError(tag);
+      }
+      if (sessionData.serverGatewayPubkey == "") {
+        throw new ServerGatewayPubkeyError(tag);
+      }
+      if (sessionData.senderGatewayOwnerId == "") {
+        throw new GatewayNetworkIdError(tag);
+      }
+      if (sessionData.receiverGatewayOwnerId == "") {
+        throw new GatewayNetworkIdError(tag);
+      }
+      if (sessionData.signatureAlgorithm == SignatureAlgorithm.UNSPECIFIED) {
+        throw new SignatureAlgorithmError(tag);
+      }
+      if (sessionData.lockType == LockType.UNSPECIFIED) {
+        throw new LockTypeError(tag);
+      }
+      if (sessionData.lockExpirationTime == BigInt(0)) {
+        throw new lockExpirationTimeError(tag);
+      }
+      if (sessionData.credentialProfile == undefined) {
+        throw new CredentialProfileError(tag);
+      }
+      if (sessionData.loggingProfile == "") {
+        throw new LoggingProfileError(tag);
+      }
+      if (sessionData.accessControlProfile == "") {
+        throw new AccessControlProfileError(tag);
+      }
+      if (sessionData.transferContextId == "") {
+        throw new TransferContextIdError(tag);
+      }
+      if (
+        // sessionData.maxRetries == undefined ||
+        // sessionData.maxTimeout == undefined ||
+        // sessionData.lastSequenceNumber == BigInt(0) ||
+        false
+      ) {
+        throw new SessionDataNotLoadedCorrectlyError(
+          tag,
+          JSON.stringify(sessionData),
+        );
+      }
+      if (sessionData.version != SATP_VERSION) {
+        throw new SATPVersionError(tag, sessionData.version, SATP_VERSION);
+      }
+    } catch (error) {
       throw new SessionDataNotLoadedCorrectlyError(
         tag,
         JSON.stringify(sessionData),
+        error,
       );
-    }
-    if (sessionData.version != SATP_VERSION) {
-      throw new SATPVersionError(tag, sessionData.version, SATP_VERSION);
     }
   }
 }

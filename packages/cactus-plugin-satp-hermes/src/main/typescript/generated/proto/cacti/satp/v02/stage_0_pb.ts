@@ -331,3 +331,77 @@ export class PreSATPTransferResponse extends Message<PreSATPTransferResponse> {
   }
 }
 
+/**
+ * @generated from message cacti.satp.v02.CheckRequest
+ */
+export class CheckRequest extends Message<CheckRequest> {
+  /**
+   * @generated from field: string check = 1;
+   */
+  check = "";
+
+  constructor(data?: PartialMessage<CheckRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cacti.satp.v02.CheckRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "check", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CheckRequest {
+    return new CheckRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CheckRequest {
+    return new CheckRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CheckRequest {
+    return new CheckRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CheckRequest | PlainMessage<CheckRequest> | undefined, b: CheckRequest | PlainMessage<CheckRequest> | undefined): boolean {
+    return proto3.util.equals(CheckRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message cacti.satp.v02.CheckResponse
+ */
+export class CheckResponse extends Message<CheckResponse> {
+  /**
+   * @generated from field: string check = 1;
+   */
+  check = "";
+
+  constructor(data?: PartialMessage<CheckResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "cacti.satp.v02.CheckResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "check", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CheckResponse {
+    return new CheckResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CheckResponse {
+    return new CheckResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CheckResponse {
+    return new CheckResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CheckResponse | PlainMessage<CheckResponse> | undefined, b: CheckResponse | PlainMessage<CheckResponse> | undefined): boolean {
+    return proto3.util.equals(CheckResponse, a, b);
+  }
+}
+

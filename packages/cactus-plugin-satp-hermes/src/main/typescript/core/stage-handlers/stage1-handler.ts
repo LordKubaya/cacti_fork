@@ -14,6 +14,7 @@ import {
   SATPHandler,
   SATPHandlerOptions,
   SATPHandlerType,
+  Stage,
 } from "../../types/satp-protocol";
 import { Logger, LoggerProvider } from "@hyperledger/cactus-common";
 import {
@@ -47,6 +48,9 @@ export class Stage1SATPHandler implements SATPHandler {
 
   getHandlerSessions(): string[] {
     return Array.from(this.sessions.keys());
+  }
+  getStage(): string {
+    return Stage.STAGE1;
   }
 
   public get Log(): Logger {
@@ -86,7 +90,7 @@ export class Stage1SATPHandler implements SATPHandler {
       }
       return message;
     } catch (error) {
-      throw new FailedToProcessError(fnTag, "TransferProposalRequest");
+      throw new FailedToProcessError(fnTag, "TransferProposalRequest", error);
     }
   }
 
@@ -120,7 +124,7 @@ export class Stage1SATPHandler implements SATPHandler {
       }
       return message;
     } catch (error) {
-      throw new FailedToProcessError(fnTag, "TransferCommenceResponse");
+      throw new FailedToProcessError(fnTag, "TransferCommenceResponse", error);
     }
   }
 
@@ -159,7 +163,7 @@ export class Stage1SATPHandler implements SATPHandler {
       }
       return requestTransferProposal;
     } catch (error) {
-      throw new FailedToProcessError(fnTag, "TransferProposalRequest");
+      throw new FailedToProcessError(fnTag, "TransferProposalRequest", error);
     }
   }
 
@@ -196,7 +200,7 @@ export class Stage1SATPHandler implements SATPHandler {
 
       return requestTransferCommence;
     } catch (error) {
-      throw new FailedToProcessError(fnTag, "TransferCommenceRequest");
+      throw new FailedToProcessError(fnTag, "TransferCommenceRequest", error);
     }
   }
 }

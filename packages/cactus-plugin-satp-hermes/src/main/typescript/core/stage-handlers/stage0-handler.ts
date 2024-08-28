@@ -5,10 +5,13 @@ import {
   SATPHandler,
   SATPHandlerOptions,
   SATPHandlerType,
+  Stage,
 } from "../../types/satp-protocol";
 import { ConnectRouter, HandlerContext } from "@connectrpc/connect";
 import { SatpStage0Service } from "../../generated/proto/cacti/satp/v02/stage_0_connect";
 import {
+  CheckRequest,
+  CheckResponse,
   NewSessionRequest,
   NewSessionResponse,
   PreSATPTransferRequest,
@@ -22,7 +25,6 @@ import {
   SenderGatewayNetworkIdError,
   SessionNotFoundError,
 } from "../errors/satp-handler-errors";
-
 export class Stage0SATPHandler implements SATPHandler {
   public static readonly CLASS_NAME = SATPHandlerType.STAGE0;
   private sessions: Map<string, SATPSession>;
@@ -44,6 +46,10 @@ export class Stage0SATPHandler implements SATPHandler {
 
   getHandlerIdentifier(): SATPHandlerType {
     return Stage0SATPHandler.CLASS_NAME;
+  }
+
+  getStage(): string {
+    return Stage.STAGE0;
   }
 
   public get Log(): Logger {
@@ -88,7 +94,7 @@ export class Stage0SATPHandler implements SATPHandler {
 
       return message;
     } catch (error) {
-      throw new FailedToCreateMessageError(fnTag, "NewSessionResponse");
+      throw new FailedToCreateMessageError(fnTag, "NewSessionResponse", error);
     }
   }
 
@@ -125,12 +131,19 @@ export class Stage0SATPHandler implements SATPHandler {
 
       return message;
     } catch (error) {
-      throw new FailedToCreateMessageError(fnTag, "NewSessionResponse");
+      throw new FailedToCreateMessageError(fnTag, "NewSessionResponse", error);
     }
+  }
+
+  async check(req: CheckRequest): Promise<CheckResponse> {
+    return new CheckResponse({ check: req.check });
   }
 
   setupRouter(router: ConnectRouter): void {
     router.service(SatpStage0Service, {
+      async check(req: CheckRequest): Promise<CheckResponse> {
+        return new CheckResponse({ check: req.check });
+      },
       newSession: this.NewSessionImplementation,
       preSATPTransfer: this.PreSATPTransferImplementation,
     });
@@ -160,7 +173,7 @@ export class Stage0SATPHandler implements SATPHandler {
 
       return message;
     } catch (error) {
-      throw new FailedToProcessError(fnTag, "NewSessionRequest");
+      throw new FailedToProcessError(fnTag, "NewSessionRequest", error);
     }
   }
 
@@ -200,7 +213,7 @@ export class Stage0SATPHandler implements SATPHandler {
 
       return message;
     } catch (error) {
-      throw new FailedToProcessError(fnTag, "PreSATPTransferRequest");
+      throw new FailedToProcessError(fnTag, "PreSATPTransferRequest", error);
     }
   }
 }

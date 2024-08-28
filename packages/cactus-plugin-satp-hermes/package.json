@@ -55,7 +55,7 @@
   ],
   "scripts": {
     "preinstall": "curl -L https://foundry.paradigm.xyz | bash && foundryup",
-    "start-gateway": "ts-node satp-gateway-cli.ts",
+    "start-gateway": "ts-node /src/main/typescript/plugin-satp-hermes-gateway-cli.ts",
     "build": "run-s codegen tsc",
     "build-proto": "buf build --path src/main/proto --verbose",
     "build:dev:backend:postbuild": "mkdir -p ./dist/lib/knex && cp -r ./src/knex/* ./dist/lib/knex",

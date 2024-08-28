@@ -14,6 +14,7 @@ import {
 } from "../../generated/proto/cacti/satp/v02/common/message_pb";
 import { GatewayOrchestrator } from "../../gol/gateway-orchestrator";
 import { GatewayIdentity } from "../../core/types";
+import { SATP_VERSION } from "../../core/constants";
 
 // todo
 export async function ExecuteTransact(
@@ -42,15 +43,15 @@ export async function ExecuteTransact(
   const lockExpirationTime: bigint = BigInt(1000 * 60 * 5);
 
   const credentialProfile: CredentialProfile = CredentialProfile.UNSPECIFIED;
-  const loggingProfile: string = "";
-  const accessControlProfile: string = "";
+  const loggingProfile: string = "MOCK_LOGGING_PROFILE";
+  const accessControlProfile: string = "MOCK_ACCESS_CONTROL_PROFILE";
 
   //todo verify ontologies signatures, validation, etc.
 
   let session = manager.getOrCreateSession(undefined, req.contextID);
   session = populateClientSessionData(
     session,
-    "v2.0",
+    SATP_VERSION,
     req.sourceAsset.contractAddress,
     req.destinyAsset.contractAddress,
     req.originatorPubkey,
@@ -65,7 +66,7 @@ export async function ExecuteTransact(
     lockType,
     lockExpirationTime,
     credentialProfile,
-    loggingProfile,
+    loggingProfile ? loggingProfile : "",
     accessControlProfile,
     req.sourceAsset.ontology,
     req.destinyAsset.ontology,

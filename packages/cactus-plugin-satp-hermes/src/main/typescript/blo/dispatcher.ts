@@ -65,7 +65,7 @@ export class BLODispatcher {
       signer: signer,
       supportedDLTs: this.orchestrator.supportedDLTs,
       bridgeManager: this.bridgeManager,
-      orquestrator: this.orchestrator,
+      orchestrator: this.orchestrator,
       pubKey: options.pubKey,
     };
 

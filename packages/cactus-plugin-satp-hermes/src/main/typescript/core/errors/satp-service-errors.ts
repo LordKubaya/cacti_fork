@@ -27,8 +27,11 @@ export class SessionMissMatchError extends SATPInternalError {
 }
 
 export class SessionDataNotLoadedCorrectlyError extends SATPInternalError {
-  constructor(tag: string, data: string) {
-    super(`${tag}, session data was not loaded correctly \n ${data}`, 500);
+  constructor(tag: string, data: string, stack?: Error) {
+    super(
+      `${tag}, session data was not loaded correctly \n ${data} \n stack: ${stack} `,
+      500,
+    );
   }
 }
 
@@ -45,11 +48,21 @@ export class SessionCompletedError extends SATPInternalError {
 }
 
 export class SATPVersionError extends SATPInternalError {
-  constructor(tag: string, unsupported: string, supported: string) {
-    super(
-      `${tag}, unsupported SATP version \n received: ${unsupported}, supported: ${supported}`,
-      400,
-    );
+  constructor(tag: string, unsupported?: string, supported?: string) {
+    if (!supported) {
+      super(`${tag}, SATP version is missing`, 400);
+    } else {
+      super(
+        `${tag}, unsupported SATP version \n received: ${unsupported}, supported: ${supported}`,
+        400,
+      );
+    }
+  }
+}
+
+export class SignatureAlgorithmError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, signature algorithm is missing`, 400);
   }
 }
 
@@ -62,6 +75,36 @@ export class SignatureVerificationError extends SATPInternalError {
 export class SignatureMissingError extends SATPInternalError {
   constructor(tag: string) {
     super(`${tag}, message signature missing`, 400);
+  }
+}
+
+export class LockTypeError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, lock type missing`, 400);
+  }
+}
+
+export class lockExpirationTimeError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, lock expiration time missing`, 400);
+  }
+}
+
+export class CredentialProfileError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, credential profile missing`, 400);
+  }
+}
+
+export class LoggingProfileError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, logging profile missing`, 400);
+  }
+}
+
+export class AccessControlProfileError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, access control profile missing`, 400);
   }
 }
 
@@ -129,11 +172,15 @@ export class HashError extends SATPInternalError {
 }
 
 export class TransferContextIdError extends SATPInternalError {
-  constructor(tag: string, received: string, expected: string) {
-    super(
-      `${tag}, transferContextId missing or missmatch \n received: ${received} \n expected: ${expected}`,
-      400,
-    );
+  constructor(tag: string, received?: string, expected?: string) {
+    if (!received || !expected) {
+      super(`${tag}, transferContextId missing or missmatch`, 400);
+    } else {
+      super(
+        `${tag}, transferContextId missing or missmatch \n received: ${received} \n expected: ${expected}`,
+        400,
+      );
+    }
   }
 }
 
@@ -236,5 +283,17 @@ export class TokenIdMissingError extends SATPInternalError {
 export class MissingRecipientError extends SATPInternalError {
   constructor(tag: string) {
     super(`${tag}, Recipient is missing`, 400);
+  }
+}
+
+export class DigitalAssetIdError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, DigitalAssetId is missing`, 400);
+  }
+}
+
+export class PubKeyError extends SATPInternalError {
+  constructor(tag: string) {
+    super(`${tag}, PubKey is missing`, 400);
   }
 }

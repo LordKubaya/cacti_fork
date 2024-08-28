@@ -52,7 +52,16 @@ message PreSATPTransferResponse {
   string server_signature = 6;
 }
 
+message CheckRequest {
+  string check = 1;
+}
+
+message CheckResponse {
+  string check = 1;
+}
+
 service SatpStage0Service {
   rpc NewSession(NewSessionRequest) returns (NewSessionResponse) {}
   rpc PreSATPTransfer(PreSATPTransferRequest) returns (PreSATPTransferResponse) {}
+  rpc Check(CheckRequest) returns (CheckResponse) {}
 }
