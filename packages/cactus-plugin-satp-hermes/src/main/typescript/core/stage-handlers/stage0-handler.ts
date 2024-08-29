@@ -135,10 +135,6 @@ export class Stage0SATPHandler implements SATPHandler {
     }
   }
 
-  async check(req: CheckRequest): Promise<CheckResponse> {
-    return new CheckResponse({ check: req.check });
-  }
-
   setupRouter(router: ConnectRouter): void {
     router.service(SatpStage0Service, {
       async check(req: CheckRequest): Promise<CheckResponse> {
