@@ -466,7 +466,7 @@ export class PluginConsortiumStatic
       },
       treeHash,
       node: nodeInfo.node,
-      ledger: nodeInfo.ledgers,
+      ledger: nodeInfo.ledgers as any, // FIXME this is bad, find the actual root cause please!
       pluginInstance: nodeInfo.pluginInstances,
       signature: await this.sign(msg),
     };

@@ -112,7 +112,9 @@ export class GatewayOrchestrator {
       this.expressServer!.use(
         `/${this.handlers.get(stage)!.getStage()}`,
         expressConnectMiddleware({
-          routes: this.handlers.get(stage)!.setupRouter,
+          routes: this.handlers
+            .get(stage)!
+            .setupRouter.bind(this.handlers.get(stage)!),
         }),
       );
     }

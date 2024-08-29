@@ -1,45 +1,26 @@
 import "jest-extended";
 
 import {
-  IListenOptions,
   LogLevelDesc,
   LoggerProvider,
   Secp256k1Keys,
-  Servers,
 } from "@hyperledger/cactus-common";
 import { v4 as uuidv4 } from "uuid";
 
 import { PluginRegistry } from "@hyperledger/cactus-core";
 import { PluginKeychainMemory } from "@hyperledger/cactus-plugin-keychain-memory";
 import {
-  ChainCodeProgrammingLanguage,
   Configuration,
-  DefaultEventHandlerStrategy,
   FabricSigningCredential,
-  FileBase64,
-  IPluginLedgerConnectorFabricOptions,
-  PluginLedgerConnectorFabric,
-  DefaultApi as FabricApi,
-  FabricContractInvocationType,
 } from "@hyperledger/cactus-plugin-ledger-connector-fabric";
-import http from "http";
-import fs from "fs-extra";
 
 import {
   pruneDockerAllIfGithubAction,
   Containers,
   FabricTestLedgerV1,
   BesuTestLedger,
-  FABRIC_25_LTS_AIO_FABRIC_VERSION,
-  FABRIC_25_LTS_AIO_IMAGE_VERSION,
-  FABRIC_25_LTS_FABRIC_SAMPLES_ENV_INFO_ORG_1,
-  FABRIC_25_LTS_FABRIC_SAMPLES_ENV_INFO_ORG_2,
 } from "@hyperledger/cactus-test-tooling";
-import bodyParser from "body-parser";
-import express from "express";
-import { DiscoveryOptions, X509Identity } from "fabric-network";
-import { AddressInfo } from "net";
-import path from "path";
+import { X509Identity } from "fabric-network";
 import {
   BesuConfig,
   FabricConfig,
@@ -74,7 +55,6 @@ import {
 } from "@hyperledger/cactus-core-api";
 import { TokenType } from "../../../main/typescript/core/stage-services/satp-bridge/types/asset";
 import { BesuAsset } from "../../../main/typescript/core/stage-services/satp-bridge/types/besu-asset";
-import FabricSATPInteraction from "../../../test/typescript/fabric/satp-erc20-interact.json";
 import BesuSATPInteraction from "../../solidity/satp-erc20-interact.json";
 
 const logLevel: LogLevelDesc = "DEBUG";

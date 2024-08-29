@@ -58,13 +58,13 @@ export class Stage0SATPHandler implements SATPHandler {
 
   private async NewSessionImplementation(
     req: NewSessionRequest,
-    context: HandlerContext,
+    // context: HandlerContext,
   ): Promise<NewSessionResponse> {
     const stepTag = `NewSessionImplementation()`;
     const fnTag = `${this.getHandlerIdentifier()}#${stepTag}`;
     try {
       this.Log.debug(`${fnTag}, New Session...`);
-      this.Log.debug(`${fnTag}, Request: ${req}, Context: ${context}`);
+      // this.Log.debug(`${fnTag}, Request: ${req}, Context: ${context}`);
 
       let session = this.sessions.get(req.sessionId);
 
@@ -94,6 +94,7 @@ export class Stage0SATPHandler implements SATPHandler {
 
       return message;
     } catch (error) {
+      console.error("MARKER_500", error);
       throw new FailedToCreateMessageError(fnTag, "NewSessionResponse", error);
     }
   }
@@ -136,11 +137,28 @@ export class Stage0SATPHandler implements SATPHandler {
   }
 
   setupRouter(router: ConnectRouter): void {
+    const log = this.Log;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+
     router.service(SatpStage0Service, {
       async check(req: CheckRequest): Promise<CheckResponse> {
         return new CheckResponse({ check: req.check });
       },
-      newSession: this.NewSessionImplementation,
+      async newSession(req: NewSessionRequest): Promise<NewSessionResponse> {
+        try {
+          console.log("MARKER_101 ", req);
+          const res = await that.NewSessionImplementation(req);
+          console.log("MARKER_200", res);
+          return res;
+        } catch (ex) {
+          console.error("MARKER_300", ex);
+          throw ex;
+        } finally {
+          console.log("MARKER_400", req);
+        }
+      },
+      // newSession: this.NewSessionImplementation,
       preSATPTransfer: this.PreSATPTransferImplementation,
     });
   }
