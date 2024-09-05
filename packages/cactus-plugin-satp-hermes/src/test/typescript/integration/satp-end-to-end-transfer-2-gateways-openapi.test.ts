@@ -1053,6 +1053,7 @@ describe("2 SATPGateway sending a token from Besu to Fabric using openApi to req
       port,
       log,
     );
+<<<<<<< HEAD
     const adminApi = createClient("AdminApi", address, port, log);
 
     const res = await transactionApiClient.transact(req as TransactRequest);
@@ -1062,6 +1063,12 @@ describe("2 SATPGateway sending a token from Besu to Fabric using openApi to req
     expect(sessions.data).toBeTruthy();
     expect(sessions.data.length).toBe(1);
     expect(sessions.data[0]).toBe(res.data.sessionID);
+=======
+
+    const res = await transactionApiClient.transact(req as TransactRequest);
+
+    log.info(res?.data.statusResponse);
+>>>>>>> cb1350e66 (feat(satp-hermes): openApi transact implementation)
 
     const responseBalanceOwner = await testing_connector.invokeContract({
       contractName: erc20TokenContract,
