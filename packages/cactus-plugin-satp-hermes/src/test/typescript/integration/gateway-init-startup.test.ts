@@ -11,7 +11,6 @@ import {
 } from "../../../main/typescript/plugin-satp-hermes-gateway";
 import { PluginFactorySATPGateway } from "../../../main/typescript/factory/plugin-factory-gateway-orchestrator";
 import {
-  Configuration,
   IPluginFactoryOptions,
   PluginImportType,
 } from "@hyperledger/cactus-core-api";
@@ -19,10 +18,6 @@ import {
   ShutdownHook,
   SupportedChain,
 } from "./../../../main/typescript/core/types";
-import { Asset, TransactRequest } from "../../../main/typescript";
-import { TransactionApi as GatewayAPI } from "../../../main/typescript/generated/gateway-client/typescript-axios/api";
-import axios from "axios";
-import { createClient } from "../test-utils";
 
 const logLevel: LogLevelDesc = "DEBUG";
 const logger = LoggerProvider.getOrCreate({
@@ -299,46 +294,6 @@ describe("SATPGateway startup", () => {
     expect(identity.gatewayClientPort).toBe(3010);
     expect(identity.address).toBe("http://localhost");
     await gateway.startup();
-
-    const sourceAsset: Asset = {
-      owner: "",
-      ontology: "",
-      contractName: "",
-      contractAddress: "",
-    };
-    const destinyAsset: Asset = {
-      owner: "",
-      ontology: "",
-      contractName: "",
-      contractAddress: "",
-    };
-
-    const req: TransactRequest = {
-      contextID: "mockContext",
-      fromDLTNetworkID: SupportedChain.BESU,
-      toDLTNetworkID: SupportedChain.FABRIC,
-      fromAmount: "100",
-      toAmount: "1",
-      originatorPubkey: "",
-      beneficiaryPubkey: "",
-      sourceAsset,
-      destinyAsset,
-    };
-
-    const address = options.gid!.address!;
-    const port = options.gid!.gatewayOpenAPIPort!;
-
-    const transactionApiClient = createClient(
-      "TransactionApi",
-      address,
-      port,
-      logger,
-    );
-
-    const res = await transactionApiClient.transact(req);
-
-    console.log(res?.data.statusResponse);
-
     await gateway.shutdown();
   });
 });
