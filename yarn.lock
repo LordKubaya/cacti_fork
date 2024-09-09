@@ -10921,7 +10921,7 @@ __metadata:
     "@types/swagger-ui-express": "npm:4.1.6"
     "@types/tape": "npm:4.13.4"
     "@types/uuid": "npm:10.0.0"
-    axios: "npm:1.6.0"
+    axios: "npm:1.7.7"
     body-parser: "npm:1.20.2"
     class-transformer: "npm:0.5.1"
     class-validator: "npm:0.14.1"

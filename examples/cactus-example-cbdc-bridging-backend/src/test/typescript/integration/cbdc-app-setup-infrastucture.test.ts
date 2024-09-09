@@ -41,9 +41,12 @@ describe("Setup CBDC app infrastructure", () => {
       apiServer1Port: 4000,
       apiServer2Port: 4100,
       apiHost: "localhost",
-      apiServer1CrpcPort: 6000,
-      apiServer2CrpcPort: 6100,
-      apiCrpcHost: "localhost",
+      apiGateway1ServerPort: 3010,
+      apiGateway1ClientPort: 4011,
+      apiGateway1BloPort: 4010,
+      apiGateway2ServerPort: 3110,
+      apiGateway2ClientPort: 3111,
+      apiGateway2BloPort: 4110,
       logLevel,
     };
     app = new CbdcBridgingApp(options);

@@ -17,27 +17,34 @@ import {
 } from "@hyperledger/cactus-cmd-api-server";
 import {
   Configuration,
+  PluginFactorySATPGateway,
+  SATPGateway,
+  SATPGatewayConfig,
 } from "@hyperledger/cactus-plugin-satp-hermes/";
 import { PluginKeychainMemory } from "@hyperledger/cactus-plugin-keychain-memory";
 import { CbdcBridgingAppDummyInfrastructure } from "./infrastructure/cbdc-bridging-app-dummy-infrastructure";
 import { DefaultApi as FabricApi } from "@hyperledger/cactus-plugin-ledger-connector-fabric";
 import { DefaultApi as BesuApi } from "@hyperledger/cactus-plugin-ledger-connector-besu";
-import { FabricSatpGateway } from "./satp-extension/fabric-satp-gateway";
-import { BesuSatpGateway } from "./satp-extension/besu-satp-gateway";
 import CryptoMaterial from "../../crypto-material/crypto-material.json";
 import express from "express";
 import bodyParser from "body-parser";
 import http, { Server } from "http";
 import { Server as SocketIoServer } from "socket.io";
-import { Constants } from "@hyperledger/cactus-core-api";
+import { Constants, IPluginFactoryOptions, PluginImportType } from "@hyperledger/cactus-core-api";
+import { SupportedChain, GatewayIdentity } from "@hyperledger/cactus-plugin-satp-hermes/src/main/typescript/core/types";
+import { Address } from "cluster";
 
 export interface ICbdcBridgingApp {
   apiHost: string;
   apiServer1Port: number;
   apiServer2Port: number;
-  apiCrpcHost: string;
-  apiServer1CrpcPort: number;
-  apiServer2CrpcPort: number;
+  apiGateway1ServerPort: number;
+  apiGateway1ClientPort: number;
+  apiGateway1BloPort: number;
+  apiGateway2ServerPort: number;
+  apiGateway2ClientPort: number;
+  apiGateway2BloPort: number;
+
 
   logLevel?: LogLevelDesc;
   apiServerOptions?: ICactusApiServerOptions;
@@ -133,46 +140,6 @@ export class CbdcBridgingApp {
     const nodeApiHostA = `http://${this.options.apiHost}:${addressInfoA.port}`;
     const nodeApiHostB = `http://${this.options.apiHost}:${addressInfoB.port}`;
 
-    /*const fabricSatpGateway = await this.infrastructure.createClientGateway(
-      nodeApiHostA,
-      this.options.clientGatewayKeyPair,
-    );
-    const besuSatpGateway = await this.infrastructure.createServerGateway(
-      nodeApiHostB,
-      this.options.serverGatewayKeyPair,
-    );*/
-	
-    const clientPluginRegistry = new PluginRegistry({
-      plugins: [
-        new PluginKeychainMemory({
-          keychainId: CryptoMaterial.keychains.keychain1.id,
-          instanceId: uuidv4(),
-          logLevel: "INFO",
-        }),
-      ],
-    });
-    const serverPluginRegistry = new PluginRegistry({
-      plugins: [
-        new PluginKeychainMemory({
-          keychainId: CryptoMaterial.keychains.keychain2.id,
-          instanceId: uuidv4(),
-          logLevel: "INFO",
-        }),
-      ],
-    });
-	
-    clientPluginRegistry.add(fabricPlugin);
-    //clientPluginRegistry.add(fabricSatpGateway);
-
-    serverPluginRegistry.add(besuPlugin);
-    //serverPluginRegistry.add(besuSatpGateway);
-
-    //const crpcOptionsServer1 = {host: this.options.apiCrpcHost, port: this.options.apiServer1CrpcPort};
-    //const apiServer1 = await this.startNode(httpApiA, clientPluginRegistry, crpcOptionsServer1);
-	
-    //const crpcOptionsServer2 = {host: this.options.apiCrpcHost, port: this.options.apiServer2CrpcPort};
-    //const apiServer2 = await this.startNode(httpApiB, serverPluginRegistry, crpcOptionsServer2);
-
     const fabricApiClient = new FabricApi(
       new Configuration({ basePath: nodeApiHostA }),
     );
@@ -191,21 +158,13 @@ export class CbdcBridgingApp {
     this.log.info("Fabric Chaincode Deployed");
     await this.infrastructure.deployBesuContracts(besuApiClient);
 
+    await this.infrastructure.initializeContractsAndAddPermitions(fabricApiClient, besuApiClient);
+
     this.log.info(`Chaincode and smart Contracts deployed.`);
 
     return {
-      //apiServer1,
-      //apiServer2,
-      //fabricGatewayApi: new SatpApi(
-      //  new Configuration({ basePath: nodeApiHostA }),
-      //),
-      //besuGatewayApi: new SatpApi(
-      //  new Configuration({ basePath: nodeApiHostB }),
-      //),
       fabricApiClient,
       besuApiClient,
-      //fabricSatpGateway,
-      //besuSatpGateway,
     };
   }
 
@@ -268,6 +227,6 @@ export interface IStartInfo {
   //readonly besuGatewayApi: SatpApi;
   readonly besuApiClient: BesuApi;
   readonly fabricApiClient: FabricApi;
-  readonly fabricSatpGateway: FabricSatpGateway;
-  readonly besuSatpGateway: BesuSatpGateway;
+  readonly fabricSatpGateway: SATPGateway;
+  readonly besuSatpGateway: SATPGateway;
 }
