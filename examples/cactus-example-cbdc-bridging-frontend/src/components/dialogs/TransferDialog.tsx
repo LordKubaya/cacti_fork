@@ -9,12 +9,12 @@ import Select, { SelectChangeEvent } from "@mui/material/Select";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import Alert from "@mui/material/Alert";
-import { transferTokensFabric } from "../../api-calls/fabric-api";
-import { transferTokensBesu } from "../../api-calls/besu-api";
+import { transferTokens } from "../../api-calls/ledgers-api";
 
 const recipients = ["Alice", "Charlie"];
 
 export interface ITransferDialogOptions {
+  path: string;
   open: boolean;
   ledger: string;
   user: string;
@@ -68,11 +68,18 @@ export default function TransferDialog(props: ITransferDialogOptions) {
     } else {
       setSending(true);
 
-      if (props.ledger === "Fabric") {
-        await transferTokensFabric(props.user, recipient, amount.toString());
-      } else {
-        await transferTokensBesu(props.user, recipient, amount);
+      if (props.ledger !== "FABRIC" && props.ledger !== "BESU") {
+        setErrorMessage("Invalid ledger");
+        return;
       }
+
+      await transferTokens(
+        props.path,
+        props.ledger,
+        props.user,
+        recipient,
+        amount.toString(),
+      );
     }
     props.onClose();
   };

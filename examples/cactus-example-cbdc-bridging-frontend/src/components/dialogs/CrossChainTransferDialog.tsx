@@ -9,11 +9,12 @@ import Select, { SelectChangeEvent } from "@mui/material/Select";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import Alert from "@mui/material/Alert";
-import { bridgeTokens } from "../../api-calls/gateway-api";
+import { transactTokens } from "../../api-calls/gateway-api";
 
 const recipients = ["Alice", "Charlie"];
 
 export interface ICrossChainTransferDialogOptions {
+  path: string;
   open: boolean;
   ledger: string;
   user: string;
@@ -70,12 +71,17 @@ export default function CrossChainTransferDialog(
       setErrorMessage("Amounts must be a positive value");
     } else {
       setSending(true);
-      await bridgeTokens(
+      if (props.ledger !== "FABRIC" && props.ledger !== "BESU") {
+        setErrorMessage("Invalid ledger");
+        return;
+      }
+      await transactTokens(
+        props.path,
         props.user,
         recipient,
         props.ledger,
-        props.ledger === "Fabric" ? "Besu" : "Fabric",
-        amount,
+        props.ledger === "FABRIC" ? "BESU" : "FABRIC",
+        amount.toString(),
       );
     }
 

@@ -229,8 +229,6 @@ export class CbdcBridgingApp {
 export interface IStartInfo {
   readonly apiServer1: ApiServer;
   readonly apiServer2: ApiServer;
-  //readonly fabricGatewayApi: SatpApi;
-  //readonly besuGatewayApi: SatpApi;
   readonly besuApiClient: BesuApi;
   readonly fabricApiClient: FabricApi;
   readonly fabricSatpGateway: SATPGateway;

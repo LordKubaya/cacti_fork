@@ -7,10 +7,9 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import Alert from "@mui/material/Alert";
-import { authorizeNTokensFabric } from "../../api-calls/fabric-api";
-import { authorizeNTokensBesu } from "../../api-calls/besu-api";
-
+import { approveNTokens } from "../../api-calls/ledgers-api";
 export interface IPermissionDialogOptions {
+  path: string;
   open: boolean;
   user: string;
   ledger: string;
@@ -59,11 +58,18 @@ export default function setGivePermissionDialog(
       setErrorMessage("Amount must be a positive value");
     } else {
       setSending(true);
-      if (props.ledger === "Fabric") {
-        await authorizeNTokensFabric(props.user, amount.toString());
-      } else {
-        await authorizeNTokensBesu(props.user, amount);
+      if (props.ledger !== "FABRIC" && props.ledger !== "BESU") {
+        setErrorMessage("Invalid ledger");
+        return;
       }
+
+      await approveNTokens(
+        props.path,
+        props.ledger,
+        props.user,
+        amount.toString(),
+      );
+
       props.onClose();
     }
   };

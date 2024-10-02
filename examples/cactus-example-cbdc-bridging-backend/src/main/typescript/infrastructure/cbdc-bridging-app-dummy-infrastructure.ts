@@ -3,6 +3,8 @@ import cors from "cors";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs-extra";
+import axios from "axios";
+import bodyParser from "body-parser";
 import {
   Logger,
   Checks,
@@ -44,11 +46,22 @@ import { PluginRegistry } from "@hyperledger/cactus-core";
 import SATPContract from "../../../solidity/main/generated/satp-erc20.sol/SATPContract.json";
 import SATPWrapperContract from "../../../solidity/main/generated/satp-wrapper.sol/SATPWrapperContract.json";
 import { PluginFactorySATPGateway, SATPGateway, SATPGatewayConfig } from "@hyperledger/cactus-plugin-satp-hermes";
-import { IPluginFactoryOptions, PluginImportType } from "@hyperledger/cactus-core-api";
+import { IPluginFactoryOptions, IWebServiceEndpoint, PluginImportType } from "@hyperledger/cactus-core-api";
 import CryptoMaterial from "../../../crypto-material/crypto-material.json";
 import { SupportedChain, GatewayIdentity, DraftVersions, Address } from "@hyperledger/cactus-plugin-satp-hermes/src/main/typescript/core/types";
 import { FabricConfig, NetworkConfig } from "@hyperledger/cactus-plugin-satp-hermes/src/main/typescript/types/blockchain-interaction";
 import { bufArray2HexStr } from "@hyperledger/cactus-plugin-satp-hermes/src/main/typescript/gateway-utils";
+import { SessionReference } from "../types";
+
+import BesuSATPInteraction from "../../../ontology/besu-erc20-ontology.json";
+import FabricSATPInteraction from "../../../ontology/fabric-erc20-ontology.json";
+import { ApproveEndpointV1 } from "../web-services/approve-endpoint";
+import { GetSessionsDataEndpointV1 } from "../web-services/get-all-session-data-endpoints";
+import { GetBalanceEndpointV1 } from "../web-services/get-balance-endpoint";
+import { MintEndpointV1 } from "../web-services/mint-endpoint";
+import { TransactEndpointV1 } from "../web-services/transact-endpoint";
+import { TransferEndpointV1 } from "../web-services/transfer-endpoint";
+import { GetAmountApprovedEndpointV1 } from "../web-services/get-amount-approved-endpoint";
 
 export interface ICbdcBridgingAppDummyInfrastructureOptions {
   logLevel?: LogLevelDesc;
@@ -84,6 +97,7 @@ export class CbdcBridgingAppDummyInfrastructure {
   private readonly gatewayFactory = new PluginFactorySATPGateway({
     pluginImportType: PluginImportType.Local,
   });
+  endpoints: any;
     
   public get className(): string {
     return CbdcBridgingAppDummyInfrastructure.CLASS_NAME;
@@ -1017,26 +1031,529 @@ export class CbdcBridgingAppDummyInfrastructure {
 
   }
 
+  public async getOrCreateWebServices(): Promise<IWebServiceEndpoint[]> {
+    const fnTag = `${CbdcBridgingAppDummyInfrastructure.CLASS_NAME}#getOrCreateWebServices()`;
+    this.log.info(
+      `${fnTag}, Registering webservices`,
+    );
+
+    if (Array.isArray(this.endpoints)) {
+      return this.endpoints;
+    }
+
+    const approveEndpointV1 = new ApproveEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const gelAllSessionDataEndpointV1 = new GetSessionsDataEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const getBalanceEndpointV1 = new GetBalanceEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const mintEndpointV1 = new MintEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const transactEndpointV1 = new TransactEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const transferEndpointV1 = new TransferEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const getApprovedEndpointV1 = new GetAmountApprovedEndpointV1({
+      infrastructure: this,
+      logLevel: this.options.logLevel,
+    });
+
+    const theEndpoints = [approveEndpointV1, gelAllSessionDataEndpointV1, getBalanceEndpointV1, mintEndpointV1, transactEndpointV1, transferEndpointV1, getApprovedEndpointV1];
+    this.endpoints = theEndpoints;
+
+    return theEndpoints;
+  }
+
+  public async getSessionsData(gateway: string): Promise<SessionReference[]> {
+    let port;
+    if (gateway === "Fabric") {
+      port = "4010";
+    } else {
+      port = "4110";
+    }
+    try {
+      const response = await axios.get(
+        `http://localhost:${port}/api/v1/@hyperledger/cactus-plugin-satp-hermes/get-sessions-ids`,
+        {},
+      );
+      if (response.status !== 200) {
+        return [
+          {
+            id: "MockID",
+            status: "undefined",
+            substatus: "undefined",
+            sourceLedger: "undefined",
+            receiverChain: "undefined",
+          },
+        ];
+      }
+      const ids = response.data;
+  
+      const sessionsData = [];
+      for (const id of ids) {
+        try {
+          const sessionData = await axios.get(
+            `http://localhost:${port}/api/v1/@hyperledger/cactus-plugin-satp-hermes/status`,
+            {
+              params: { SessionID: id },
+            },
+          );
+          const data: SessionReference = {
+            id,
+            status: sessionData.data.status,
+            substatus: sessionData.data.substatus,
+            sourceLedger: sessionData.data.originChain.dltProtocol,
+            receiverChain: sessionData.data.destinationChain.dltProtocol,
+          };
+
+          sessionsData.push(data);
+        } catch (error) {
+          sessionsData.push({
+            id: "MockID",
+            status: "undefined",
+            substatus: "undefined",
+            sourceLedger: "undefined",
+            receiverChain: "undefined",
+          });
+        }
+      }
+      return sessionsData;
+    } catch (error) {
+      console.log(error);
+      return [
+        {
+          id: "MockID",
+          status: "undefined",
+          substatus: "undefined",
+          sourceLedger: "undefined",
+          receiverChain: "undefined",
+        },
+      ];
+    }
+  }
+
+  public async bridgeTokens(
+    sender: string,
+    recipient: string,
+    sourceChain: string,
+    destinationChain: string,
+    amount: number,
+  ) {
+    let senderAddress;
+    let receiverAddress;
+    let port;
+    let sourceAsset;
+    let destinationAsset;
+  
+    let fromDLTNetworkID;
+    let toDLTNetworkID;
+  
+    if (sourceChain === "Fabric") {
+      senderAddress = this.getFabricId(sender);
+      sourceAsset = this.setFabricAsset(senderAddress as string);
+      fromDLTNetworkID = "FabricSATPGateway";
+      port = "4010";
+    } else {
+      fromDLTNetworkID = "BesuSATPGateway";
+      senderAddress = this.getEthAddress(sender);
+      sourceAsset = this.setBesuAsset(senderAddress as string, this.besuContractAddress!);
+      port = "4110";
+    }
+  
+    if (destinationChain === "Fabric") {
+      toDLTNetworkID = "FabricSATPGateway";
+      receiverAddress = this.getFabricId(recipient);
+      destinationAsset = this.setFabricAsset(receiverAddress as string);
+    } else {
+      toDLTNetworkID = "BesuSATPGateway";
+      receiverAddress = this.getEthAddress(recipient);
+      destinationAsset = this.setBesuAsset(
+        receiverAddress as string,
+        this.besuContractAddress!,
+      );
+    }
+    try {
+      await axios.post(
+        `http://localhost:${port}/api/v1/@hyperledger/cactus-plugin-satp-hermes/transact`,
+        {
+          contextID: "MockID",
+          fromDLTNetworkID,
+          toDLTNetworkID,
+          fromAmount: amount,
+          toAmount: amount,
+          receiver: receiverAddress,
+          originatorPubkey: senderAddress,
+          beneficiaryPubkey: receiverAddress,
+          sourceAsset,
+          destinyAsset: destinationAsset,
+        },
+      );
+    } catch (error) {
+      throw error;
+      //return true;
+    }
+  }
+
+  public async getFabricBalance(frontendUser: string) {
+    const fabricID = this.getFabricId(frontendUser);
+    let response;
+    try {
+      response = await axios.post(
+        "http://localhost:4000/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/run-transaction",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          channelName: CbdcBridgingAppDummyInfrastructure.FABRIC_CHANNEL_NAME,
+          params: [fabricID],
+          methodName: "ClientIDAccountBalance",
+          invocationType: "FabricContractInvocationType.CALL",
+          signingCredential: {
+            keychainId: CryptoMaterial.keychains.keychain1.id,
+            keychainRef: "userA",
+          },
+        },
+      );
+    } catch (error) {
+      this.log.error(`Fabric - Error getting balance user: ${frontendUser}`);
+      return -1;
+    }
+  
+    return parseInt(response.data.functionOutput);
+  }
+
+  public async getBesuBalance(frontendUser: string) {
+    const userEthAddress = this.getEthAddress(frontendUser);
+  
+    try {
+      const response = await axios.post(
+        "http://localhost:4100/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-besu/invoke-contract",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          invocationType: "CALL",
+          methodName: "checkBalance",
+          gas: 900000000,
+          params: [userEthAddress],
+          signingCredential: {
+            ethAccount: userEthAddress,
+            secret: this.getEthUserPrKey(frontendUser),
+            type: "PRIVATE_KEY_HEX",
+          },
+          keychainId: CryptoMaterial.keychains.keychain2.id,
+        },
+      );
+  
+      return parseInt(response.data.callOutput);
+    } catch (error) {
+      this.log.error(`Besu - Error getting balance user: ${frontendUser}`);
+      return -1;
+    }
+  }
+
+  public async mintTokensFabric(frontendUser: string, amount: string) {
+    try {
+      const response = await axios.post(
+        "http://localhost:4000/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/run-transaction",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          channelName: CbdcBridgingAppDummyInfrastructure.FABRIC_CHANNEL_NAME,
+          params: [amount],
+          methodName: "mint",
+          invocationType: "FabricContractInvocationType.SEND",
+          signingCredential: {
+            keychainId: CryptoMaterial.keychains.keychain1.id,
+            keychainRef: this.getUserFromPseudonim(frontendUser),
+          },
+        },
+      );
+    } catch (error) {
+      console.error(error.msg);
+      throw new Error("Failed to mint tokens");
+  }
+  }
+
+  public async mintTokensBesu(user: string, amount: number) {
+      const userEthAddress = this.getEthAddress(user);
+      try {
+        await axios.post(
+          "http://localhost:4100/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-besu/invoke-contract",
+          {
+            contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+            keychainId: CryptoMaterial.keychains.keychain2.id,
+            invocationType: "SEND",
+            methodName: "mint",
+            params: [userEthAddress, amount],
+            signingCredential: {
+              ethAccount: this.getEthAddress("Bridge"),
+              secret: this.getEthUserPrKey("Bridge"),
+              type: "PRIVATE_KEY_HEX",
+            },
+            gas: 1000000,
+          },
+        );
+      } catch (error) {
+        console.error(error.msg);
+        throw new Error("Failed to mint tokens");
+      }
+  }
+
+  public async transferTokensFabric(
+    frontendUserFrom: string,
+    frontendUserTo: string,
+    amount: string,
+  ) {
+    const to = this.getFabricId(frontendUserTo);
+    try {
+      await axios.post(
+        "http://localhost:4000/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/run-transaction",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          channelName: CbdcBridgingAppDummyInfrastructure.FABRIC_CHANNEL_NAME,
+          params: [to, amount.toString()],
+          methodName: "transfer",
+          invocationType: "FabricContractInvocationType.SEND",
+          signingCredential: {
+            keychainId: CryptoMaterial.keychains.keychain1.id,
+            keychainRef: this.getUserFromPseudonim(frontendUserFrom),
+          },
+        },
+      );
+    } catch (error) {
+      console.error(error.msg);
+      throw new Error("Failed to transfer tokens");
+    }
+  }
+
+  public async transferTokensBesu(
+    frontendUserFrom: string,
+    frontendUserTo: string,
+    amount: number,
+  ) {
+    const from = this.getEthAddress(frontendUserFrom);
+    const to = this.getEthAddress(frontendUserTo);
+    try {
+      await axios.post(
+        "http://localhost:4100/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-besu/invoke-contract",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          invocationType: "SEND",
+          methodName: "transfer",
+          gas: 1000000,
+          params: [to, amount],
+          signingCredential: {
+            ethAccount: from,
+            secret: this.getEthUserPrKey(frontendUserFrom),
+            type: "PRIVATE_KEY_HEX",
+          },
+          keychainId: CryptoMaterial.keychains.keychain2.id,
+        },
+      );
+    } catch (error) {
+      console.error(error);
+      throw new Error("Failed to transfer tokens");
+    }
+  }
+
+  public async approveNTokensFabric(user: string, amount: string) {
+    await axios.post(
+      "http://localhost:4000/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/run-transaction",
+      {
+        contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+        channelName: CbdcBridgingAppDummyInfrastructure.FABRIC_CHANNEL_NAME,
+        params: [CryptoMaterial.accounts.bridge.fabricID, amount],
+        methodName: "Approve",
+        invocationType: "FabricContractInvocationType.SEND",
+        signingCredential: {
+          keychainId: CryptoMaterial.keychains.keychain1.id,
+          keychainRef: this.getUserFromPseudonim(user),
+        },
+      },
+    );
+  }
+
+  public async approveNTokensBesu(
+    frontendUserFrom: string,
+    amount: number,
+  ) {
+    const from = this.getEthAddress(frontendUserFrom);
+    const res = await axios.post(
+      "http://localhost:4100/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-besu/invoke-contract",
+      {
+        contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+        invocationType: "SEND",
+        methodName: "approve",
+        gas: 1000000,
+        params: [this.besuWrapperContractAddress, amount],
+        signingCredential: {
+          ethAccount: from,
+          secret: this.getEthUserPrKey(frontendUserFrom),
+          type: "PRIVATE_KEY_HEX",
+        },
+        keychainId: CryptoMaterial.keychains.keychain2.id,
+      },
+    );
+    if (res.status !== 200) {
+      throw Error(res.status + " :" + res.data);
+    }
+  }
+
+  public async getAmountApprovedBesu(frontendUser: string) {
+    try {
+      const from = this.getEthAddress(frontendUser);
+      const response = await axios.post(
+        "http://localhost:4100/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-besu/invoke-contract",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          invocationType: "CALL",
+          methodName: "allowance",
+          gas: 1000000,
+          params: [from, this.besuWrapperContractAddress],
+          signingCredential: {
+            ethAccount: from,
+            secret: this.getEthUserPrKey(frontendUser),
+            type: "PRIVATE_KEY_HEX",
+          },
+          keychainId: CryptoMaterial.keychains.keychain2.id,
+        },
+      );
+      return response.data.callOutput;
+    } catch (error) {
+      this.log.error(`Besu - Error getting approved balance user: ${frontendUser}`);
+      return "0";
+    }
+  }
+
+  public async getAmountApprovedFabric(frontendUser: string) {
+
+    const owner = this.getFabricId(frontendUser);
+    let response;
+  
+    try {
+      response = await axios.post(
+        "http://localhost:4000/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/run-transaction",
+        {
+          contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+          channelName: CbdcBridgingAppDummyInfrastructure.FABRIC_CHANNEL_NAME,
+          params: [owner, CryptoMaterial.accounts.bridge.fabricID],
+          methodName: "Allowance",
+          invocationType: "FabricContractInvocationType.CALL",
+          signingCredential: {
+            keychainId: CryptoMaterial.keychains.keychain1.id,
+            keychainRef: this.getUserFromPseudonim(frontendUser),
+          },
+        },
+      );
+    } catch (error) {
+      this.log.error(`Fabric - Error getting approved balance user: ${frontendUser}`);
+      return "0";
+    }
+  
+    return response.data.functionOutput;
+  }
+  
+  private setBesuAsset(owner: string, contractAddress: string) {
+    return {
+      owner,
+      ontology: JSON.stringify(BesuSATPInteraction),
+      contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+      contractAddress,
+    };
+  }
+
+  private setFabricAsset(owner: string) {
+    return {
+      owner,
+      ontology: JSON.stringify(FabricSATPInteraction),
+      contractName: CbdcBridgingAppDummyInfrastructure.SATP_CONTRACT,
+      channelName: CbdcBridgingAppDummyInfrastructure.FABRIC_CHANNEL_NAME,
+      mspId: "Org1MSP",
+    };
+  }
+
+  private getUserFromPseudonim(user: string): string {
+      switch (user) {
+        case "Alice":
+          return "userA";
+        case "Charlie":
+          return "userB";
+        case "Bridge":
+          return "bridge";
+        default:
+          throw new Error(`User pseudonym not found for user: ${user}`);
+      }
+    }
+  
+  private getFabricId(user: string) {
+    switch (this.getUserFromPseudonim(user)) {
+      case "userA":
+        return CryptoMaterial.accounts["userA"].fabricID;
+      case "userB":
+        return CryptoMaterial.accounts["userB"].fabricID;
+      case "bridge":
+        return CryptoMaterial.accounts["bridge"].fabricID;
+      default:
+        throw new Error("User not found");
+    }
+  }
+  
+  private getEthAddress(user: string) {
+    switch (this.getUserFromPseudonim(user)) {
+      case "userA":
+        return CryptoMaterial.accounts["userA"].ethAddress;
+      case "userB":
+        return CryptoMaterial.accounts["userB"].ethAddress;
+      case "bridge":
+        return CryptoMaterial.accounts["bridge"].ethAddress;
+      default:
+        throw new Error("User not found");
+    }
+  }
+  
+  private getEthUserPrKey(user: string) {
+    switch (this.getUserFromPseudonim(user)) {
+      case "userA":
+        return CryptoMaterial.accounts["userA"].privateKey;
+      case "userB":
+        return CryptoMaterial.accounts["userB"].privateKey;
+      case "bridge":
+        return CryptoMaterial.accounts["bridge"].privateKey;
+      default:
+        throw new Error("User not found");
+    }
+  }
+  
+
   async startDummyServer(address: string){
     //just to send contract address to the frontend at each run
     const app = express();
+    app.use(bodyParser.json({ limit: "250mb" }));
     app.use(cors());
     const port = 9999;
 
-    // Example endpoint that returns the contract address
-    app.get('/contract-address', (_req: any, res: { json: (arg0: { address: string; }) => void; }) => {
-      // Replace this with the actual logic to retrieve the contract address
-      const contractAddress = address;
-      res.json({ address: contractAddress });
-    });
-    app.get('/wrapper-address', (_req: any, res: { json: (arg0: { address: string; }) => void; }) => {
-      // Replace this with the actual logic to retrieve the contract address
-      const contractAddress = this.besuWrapperContractAddress!;
-      res.json({ address: contractAddress });
-    });
+    const webServices = await this.getOrCreateWebServices();
+    for (const service of webServices) {
+      this.log.debug(`Registering web service: ${service.getPath()}`);
+        await service.registerExpress(app);
+      }
 
     app.listen(port, () => {
-      //console.log(`Server running on http://localhost:${port}`);
+      console.log(`Server running on http://localhost:${port}`);
     });
   }
 }
