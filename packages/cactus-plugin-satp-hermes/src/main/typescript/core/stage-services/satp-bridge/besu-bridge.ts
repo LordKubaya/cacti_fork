@@ -27,6 +27,7 @@ import { InteractionData } from "./types/interact";
 import { OntologyError, TransactionError } from "../../errors/bridge-erros";
 import { ClaimFormat } from "../../../generated/proto/cacti/satp/v02/common/message_pb";
 import { LedgerType } from "@hyperledger/cactus-core-api";
+import * as fs from "fs";
 
 interface BesuResponse {
   success: boolean;
@@ -83,6 +84,8 @@ export class BesuBridge implements NetworkBridge {
 
     const interactions = this.interactionList(asset.ontology);
 
+    const startTime = new Date().getTime();
+
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -98,7 +101,17 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
-
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperWrapTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperWrapGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -112,6 +125,8 @@ export class BesuBridge implements NetworkBridge {
   public async unwrapAsset(assetId: string): Promise<TransactionResponse> {
     const fnTag = `${BesuBridge.CLASS_NAME}}#unwrapAsset`;
     this.log.debug(`${fnTag}, Unwrapping Asset: ${assetId}`);
+
+    const startTime = new Date().getTime();
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -121,6 +136,18 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
+
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperUnwrapTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperUnwrapGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -136,6 +163,8 @@ export class BesuBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${BesuBridge.CLASS_NAME}}#lockAsset`;
     this.log.debug(`${fnTag}, Locking Asset: ${assetId} amount: ${amount}`);
+
+    const startTime = new Date().getTime();
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -145,6 +174,17 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperLockTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperLockGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -160,6 +200,8 @@ export class BesuBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${BesuBridge.CLASS_NAME}}#unlockAsset`;
     this.log.debug(`${fnTag}, Unlocking Asset: ${assetId} amount: ${amount}`);
+
+    const startTime = new Date().getTime();
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -169,6 +211,17 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperUnlockTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperUnlockGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -184,6 +237,7 @@ export class BesuBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${BesuBridge.CLASS_NAME}}#mintAsset`;
     this.log.debug(`${fnTag}, Minting Asset: ${assetId} amount: ${amount}`);
+    const startTime = new Date().getTime();
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -193,6 +247,17 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperMintTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperMintGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -208,6 +273,7 @@ export class BesuBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${BesuBridge.CLASS_NAME}}#burnAsset`;
     this.log.debug(`${fnTag}, Burning Asset: ${assetId} amount: ${amount}`);
+    const startTime = new Date().getTime();
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -217,6 +283,17 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperBurnTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperBurnGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -235,6 +312,7 @@ export class BesuBridge implements NetworkBridge {
     this.log.debug(
       `${fnTag}, Assigning Asset: ${assetId} amount: ${amount} to: ${to}`,
     );
+    const startTime = new Date().getTime();
     const response = (await this.connector.invokeContract({
       contractName: this.config.contractName,
       keychainId: this.config.keychainId,
@@ -244,6 +322,17 @@ export class BesuBridge implements NetworkBridge {
       signingCredential: this.config.signingCredential,
       gas: this.config.gas,
     })) as BesuResponse;
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperAssignTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperAssignGasUsed.csv",
+      "Gas (units)\n",
+      "" + response.out.transactionReceipt.gasUsed,
+    );
     if (!response.success) {
       throw new TransactionError(fnTag);
     }
@@ -405,5 +494,16 @@ export class BesuBridge implements NetworkBridge {
     }
 
     return interactions;
+  }
+
+  writeToCSV(filePath: string, header: string, data: string): void {
+    const fileExists = fs.existsSync(filePath);
+
+    if (!fileExists) {
+      fs.writeFileSync(filePath, header);
+    }
+
+    const csvData = `${data}\n`;
+    fs.appendFileSync(filePath, csvData);
   }
 }

@@ -84,6 +84,7 @@ import {
 import { ISATPLoggerConfig, SATPLogger } from "../logging";
 import { NetworkId } from "../network-identification/chainid-list";
 import { LedgerType } from "@hyperledger/cactus-core-api";
+import * as fs from "fs";
 
 export interface ISATPManagerOptions {
   logLevel?: LogLevelDesc;
@@ -531,6 +532,11 @@ export class SATPManager {
       let transferCompleteRequest: TransferCompleteRequest | undefined;
       let transferCompleteResponse: TransferCompleteResponse | undefined;
 
+      const startStage0Time = new Date().getTime();
+      let endStage0Time;
+      let endStage1Time;
+      let endStage2Time;
+      let endStage3Time;
       switch (stage) {
         case undefined:
         case MessageType.NEW_SESSION_REQUEST:
@@ -658,6 +664,12 @@ export class SATPManager {
             }
           }
 
+          endStage0Time = new Date().getTime();
+          this.writeToCSV(
+            "/home/kubaya/Desktop/tests/2-gateway-stage0.csv",
+            "Duration (ms)\n",
+            `${endStage0Time - startStage0Time}`,
+          );
           this.logger.debug(`${fnTag}, Initiating Stage 1`);
 
           transferProposalRequest = await (
@@ -784,6 +796,12 @@ export class SATPManager {
             }
           }
 
+          endStage1Time = new Date().getTime();
+          this.writeToCSV(
+            "/home/kubaya/Desktop/tests/2-gateway-stage1.csv",
+            "Duration (ms)\n",
+            `${endStage1Time - endStage0Time!}`,
+          );
           this.logger.debug(`${fnTag}, Initiating Stage 2`);
 
           lockAssertionRequest = await (
@@ -844,6 +862,13 @@ export class SATPManager {
               );
             }
           }
+
+          endStage2Time = new Date().getTime();
+          this.writeToCSV(
+            "/home/kubaya/Desktop/tests/2-gateway-stage2.csv",
+            "Duration (ms)\n",
+            `${endStage2Time - endStage1Time!}`,
+          );
 
           this.logger.debug(`${fnTag}, Initiating Stage 3`);
 
@@ -1022,9 +1047,27 @@ export class SATPManager {
       this.logger.debug(
         `${fnTag}, Transfer Completed for session: ${session.getSessionId()}`,
       );
+
+      // eslint-disable-next-line prefer-const
+      endStage3Time = new Date().getTime();
+      this.writeToCSV(
+        "/home/kubaya/Desktop/tests/2-gateway-stage3.csv",
+        "Duration (ms)\n",
+        `${endStage3Time - endStage2Time!}`,
+      );
     } catch (error) {
       this.logger.error(`${fnTag}, Failed to transact\nError: ${error}`);
       throw new TransactError(fnTag, error);
     }
+  }
+  private writeToCSV(filePath: string, header: string, data: string): void {
+    const fileExists = fs.existsSync(filePath);
+
+    if (!fileExists) {
+      fs.writeFileSync(filePath, header);
+    }
+
+    const csvData = `${data}\n`;
+    fs.appendFileSync(filePath, csvData);
   }
 }

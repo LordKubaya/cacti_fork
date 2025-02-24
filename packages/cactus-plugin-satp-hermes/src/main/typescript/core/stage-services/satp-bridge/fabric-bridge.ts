@@ -26,6 +26,7 @@ import { getInteractionType } from "./types/asset";
 import { OntologyError, TransactionError } from "../../errors/bridge-erros";
 import { ClaimFormat } from "../../../generated/proto/cacti/satp/v02/common/message_pb";
 import { LedgerType } from "@hyperledger/cactus-core-api";
+import * as fs from "fs";
 
 export class FabricBridge implements NetworkBridge {
   public static readonly CLASS_NAME = "FabricBridge";
@@ -70,6 +71,7 @@ export class FabricBridge implements NetworkBridge {
 
     const interactions = this.interactionList(asset.ontology);
 
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -86,6 +88,12 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperWrapTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -99,6 +107,8 @@ export class FabricBridge implements NetworkBridge {
   public async unwrapAsset(assetId: string): Promise<TransactionResponse> {
     const fnTag = `${FabricBridge.CLASS_NAME}}#unwrapAsset`;
     this.log.debug(`${fnTag}, Unwrapping Asset: ${assetId}`);
+
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -107,6 +117,13 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperUnwrapTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -123,6 +140,8 @@ export class FabricBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${FabricBridge.CLASS_NAME}}#lockAsset`;
     this.log.debug(`${fnTag}, Locking Asset: ${assetId} amount: ${amount}`);
+
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -131,6 +150,13 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperLockTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -147,6 +173,8 @@ export class FabricBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${FabricBridge.CLASS_NAME}}#unlockAsset`;
     this.log.debug(`${fnTag}, Unlocking Asset: ${assetId} amount: ${amount}`);
+
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -155,6 +183,12 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperUnlockTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -171,6 +205,8 @@ export class FabricBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${FabricBridge.CLASS_NAME}}#mintAsset`;
     this.log.debug(`${fnTag}, Minting Asset: ${assetId} amount: ${amount}`);
+
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -179,6 +215,12 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperMintTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -195,6 +237,7 @@ export class FabricBridge implements NetworkBridge {
   ): Promise<TransactionResponse> {
     const fnTag = `${FabricBridge.CLASS_NAME}}#burnAsset`;
     this.log.debug(`${fnTag}, Burning Asset: ${assetId} amount: ${amount}`);
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -203,6 +246,12 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperBurnTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -222,6 +271,8 @@ export class FabricBridge implements NetworkBridge {
     this.log.debug(
       `${fnTag}, Assigning Asset: ${assetId} amount: ${amount} to: ${to}`,
     );
+
+    const startTime = new Date().getTime();
     const response = await this.connector.transact({
       signingCredential: this.config.signingCredential,
       channelName: this.config.channelName,
@@ -230,6 +281,12 @@ export class FabricBridge implements NetworkBridge {
       contractName: this.config.contractName,
       invocationType: FabricContractInvocationType.Send,
     });
+    const endTime = new Date().getTime();
+    this.writeToCSV(
+      "/home/kubaya/Desktop/tests/WrapperAssignTime.csv",
+      "Duration (ms)\n",
+      "" + (endTime - startTime),
+    );
 
     if (response == undefined || response.transactionId == "") {
       throw new TransactionError(fnTag);
@@ -390,5 +447,16 @@ export class FabricBridge implements NetworkBridge {
     this.log.info(`Interactions: ${safeStableStringify(interactions)}`);
 
     return interactions;
+  }
+
+  writeToCSV(filePath: string, header: string, data: string): void {
+    const fileExists = fs.existsSync(filePath);
+
+    if (!fileExists) {
+      fs.writeFileSync(filePath, header);
+    }
+
+    const csvData = `${data}\n`;
+    fs.appendFileSync(filePath, csvData);
   }
 }
