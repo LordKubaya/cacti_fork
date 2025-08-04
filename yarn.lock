@@ -7108,6 +7108,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@grpc/grpc-js@npm:^1.11.0, @grpc/grpc-js@npm:^1.12.0":
+  version: 1.13.4
+  resolution: "@grpc/grpc-js@npm:1.13.4"
+  dependencies:
+    "@grpc/proto-loader": "npm:^0.7.13"
+    "@js-sdsl/ordered-map": "npm:^4.4.2"
+  checksum: 10/f1eb910ff78ddffa03870f69efccdbb30c1349571b759ee7fe971d3dc727d900748922a841bb7406e87e7130fb68e6346b0bd929a1a35b5caebe994df08e4df5
+  languageName: node
+  linkType: hard
+
 "@grpc/grpc-js@npm:~1.7.3":
   version: 1.7.3
   resolution: "@grpc/grpc-js@npm:1.7.3"
@@ -7531,11 +7541,10 @@ __metadata:
     "@grpc/grpc-js": "npm:1.13.3"
     "@hyperledger/cacti-weaver-protos-js": "npm:2.1.0"
     "@hyperledger/cacti-weaver-sdk-fabric": "npm:2.1.0"
+    "@hyperledger/fabric-gateway": "npm:1.8.0"
     "@types/node": "npm:18.11.9"
     dotenv: "npm:8.6.0"
     fabric-ca-client: "npm:2.2.20"
-    fabric-common: "npm:2.2.20"
-    fabric-network: "npm:2.2.20"
     fabric-protos: "npm:2.2.20"
     level: "npm:8.0.0"
     nodemon: "npm:2.0.22"
@@ -9560,6 +9569,32 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@hyperledger/fabric-gateway@npm:1.8.0":
+  version: 1.8.0
+  resolution: "@hyperledger/fabric-gateway@npm:1.8.0"
+  dependencies:
+    "@grpc/grpc-js": "npm:^1.12.0"
+    "@hyperledger/fabric-protos": "npm:^0.3.0"
+    "@noble/curves": "npm:^1.9.4"
+    google-protobuf: "npm:^3.21.0"
+    pkcs11js: "npm:^2.1.0"
+  dependenciesMeta:
+    pkcs11js:
+      optional: true
+  checksum: 10/a134d60b30c399ca87960e0f05964de86ed61ea2d46f9acd5631352640868788f86e87ffa4077a28b6291bf2a3d28949966776951f654dbcf1e1b9bb2fc298f5
+  languageName: node
+  linkType: hard
+
+"@hyperledger/fabric-protos@npm:^0.3.0":
+  version: 0.3.7
+  resolution: "@hyperledger/fabric-protos@npm:0.3.7"
+  dependencies:
+    "@grpc/grpc-js": "npm:^1.11.0"
+    google-protobuf: "npm:^3.21.0"
+  checksum: 10/4c0ef7a27c948b4baa45b83a1319fc240d6f1113c55f33a6d51dbbc0a02266bf2ddc9eec4146ab88c652d93c515e6946132b66a65a7a30214b3b0ce941106ff0
+  languageName: node
+  linkType: hard
+
 "@hyperledger/indy-vdr-nodejs@npm:0.2.0":
   version: 0.2.0
   resolution: "@hyperledger/indy-vdr-nodejs@npm:0.2.0"
@@ -11392,6 +11427,15 @@ __metadata:
   dependencies:
     "@noble/hashes": "npm:1.8.0"
   checksum: 10/5c82ec828ca4a4218b1666ba0ddffde17afd224d0bd5e07b64c2a0c83a3362483387f55c11cfd8db0fc046605394fe4e2c67fe024628a713e864acb541a7d2bb
+  languageName: node
+  linkType: hard
+
+"@noble/curves@npm:^1.9.4":
+  version: 1.9.6
+  resolution: "@noble/curves@npm:1.9.6"
+  dependencies:
+    "@noble/hashes": "npm:1.8.0"
+  checksum: 10/74b603bbf95cab1b6eb147d02febe55bc19cf57c324bf2ff04b44ff9be3f88affc1a57da0805c74803e27c25687079251f9c788f93f0e6fd1c5d02163996460c
   languageName: node
   linkType: hard
 
@@ -29414,7 +29458,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"google-protobuf@npm:3.21.4":
+"google-protobuf@npm:3.21.4, google-protobuf@npm:^3.21.0":
   version: 3.21.4
   resolution: "google-protobuf@npm:3.21.4"
   checksum: 10/0d87fe8ef221d105cbaa808f4024bd577638524d8e461469e3733f2e4933391ad4da86b7fcbd11e8781bee04eacf2e8ba19aaacd5f9deb336a220485841d980f
@@ -40662,6 +40706,15 @@ __metadata:
     nan: "npm:^2.15.0"
     node-gyp: "npm:latest"
   checksum: 10/bc3a7409babcfcd1f60e2235e84261b46f05584ef5a56c4be0221885b4f3692c9207efb7704c8e9bd6080e6516fcdf75789ecef1ed2c72022961acd20c0d4160
+  languageName: node
+  linkType: hard
+
+"pkcs11js@npm:^2.1.0":
+  version: 2.1.6
+  resolution: "pkcs11js@npm:2.1.6"
+  dependencies:
+    node-gyp: "npm:latest"
+  checksum: 10/563f81ce392d3866c2aab6c1521632cae559f3601bcb52db4e0b4b234839b8b9e3016da52e1cd05f3aa58f4c40a9ea0d8cce84e4fe0a42a4238bebcae653d531
   languageName: node
   linkType: hard
 

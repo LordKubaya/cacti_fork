@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
-import { Gateway, Wallets } from "fabric-network";
+import * as grpc from '@grpc/grpc-js';
+import { connect, Gateway, GrpcClient, Identity, signers } from "@hyperledger/fabric-gateway";
 import { Endorser } from "fabric-common";
 import * as path from "path";
 import * as fs from "fs";
@@ -27,52 +27,50 @@ const parseAddress = (address: string) => {
   };
 };
 
-const getWallet = (walletPath: string) => {
-  return Wallets.newFileSystemWallet(walletPath);
-};
-
 // Get a handle to a network gateway using existing wallet credentials
-const getNetworkGateway = async (networkName: string): Promise<Gateway> => {
+export const getNetworkGateway = async (networkName: string): Promise<Gateway> => {
   try {
-    // load the network configuration
-    const ccpPath = process.env.CONNECTION_PROFILE
-      ? path.resolve(__dirname, process.env.CONNECTION_PROFILE)
-      : path.resolve(__dirname, "../connection_profile.json");
-    if (!fs.existsSync(ccpPath)) {
-      logger.error(`File does not exist at path: ${ccpPath}`);
-      logger.error(
-        "Please check the CONNECTION_PROFILE environemnt variable in your .env. The path will default to the root of the fabric-driver folder if not supplied",
-      );
-      throw new Error("No CONNECTION_PROFILE provided in .env");
-    }
-    const ccp = JSON.parse(fs.readFileSync(ccpPath, "utf8"));
     const config = getConfig();
-
-    // Create a new file system-based wallet for managing identities.
-    const walletPath = process.env.WALLET_PATH
-      ? process.env.WALLET_PATH
-      : path.join(process.cwd(), `wallet-${networkName}`);
     const userName = config.relay.name;
-    const wallet = await getWallet(walletPath);
-    logger.debug(`Wallet path: ${walletPath}`);
-    // Check to see if we've already enrolled the user.
-    const identity = await wallet.get(userName);
-    if (!identity) {
-      logger.info(
-        `An identity for the user "${userName}" does not exist in the wallet`,
-      );
-      logger.info("Run the registerUser.ts application before retrying");
+
+    // Load TLS cert
+    const tlsCertPath = process.env.PEER_TLS_CERT_PATH!;
+    if (!fs.existsSync(tlsCertPath)) {
+      throw new Error(`TLS cert not found at ${tlsCertPath}`);
     }
-    // Create a new gateway for connecting to our peer node.
-    const gateway = new Gateway();
-    await gateway.connect(ccp, {
-      wallet,
-      identity: `${userName}`,
-      discovery: {
-        enabled: true,
-        asLocalhost: process.env.local === "false" ? false : true,
-      },
+    const tlsCert = fs.readFileSync(tlsCertPath);
+    const grpcCredentials = grpc.credentials.createSsl(Buffer.from(tlsCert));
+
+    // gRPC connection
+    const peerEndpoint = process.env.PEER_ENDPOINT!;
+    const client: GrpcClient = new grpc.Client(peerEndpoint, grpcCredentials, {
+      'grpc.ssl_target_name_override': process.env.PEER_HOST_ALIAS,
+    }
+    ) as unknown as GrpcClient;
+
+    // Load identity
+    const certPath = process.env.CERT_PATH!;
+    const keyPath = process.env.PRIVATE_KEY_PATH!;
+    if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+      throw new Error(`Missing cert or key files at ${certPath} or ${keyPath}`);
+    }
+
+    const identity: Identity = {
+      mspId: process.env.MSP_ID!,
+      credentials: fs.readFileSync(certPath),
+    };
+
+    const privateKeyPem = fs.readFileSync(keyPath);
+    const signer = signers.newPrivateKeySigner(privateKeyPem);
+
+    // Connect using new Gateway SDK
+    const gateway = connect({
+      client,
+      identity,
+      signer,
     });
+
+    logger.debug(`Connected to gateway for network: ${networkName}`);
     return gateway;
   } catch (error) {
     logger.error(`Failed to instantiate network (channel): ${error}`);
