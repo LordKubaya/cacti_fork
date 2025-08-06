@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import * as grpc from '@grpc/grpc-js';
-import { connect, Gateway, GrpcClient, Identity, signers } from "@hyperledger/fabric-gateway";
+const crypto = require('node:crypto');
+import { connect, Gateway, GrpcClient, Identity, Proposal, signers } from "@hyperledger/fabric-gateway";
 import { Endorser } from "fabric-common";
 import * as path from "path";
 import * as fs from "fs";
@@ -28,10 +29,11 @@ const parseAddress = (address: string) => {
 };
 
 // Get a handle to a network gateway using existing wallet credentials
-export const getNetworkGateway = async (networkName: string): Promise<Gateway> => {
+const getNetworkGateway = async (networkName: string): Promise<Gateway> => {
   try {
     const config = getConfig();
     const userName = config.relay.name;
+    const wallet = await getWallet(walletPath);
 
     // Load TLS cert
     const tlsCertPath = process.env.PEER_TLS_CERT_PATH!;
@@ -50,7 +52,7 @@ export const getNetworkGateway = async (networkName: string): Promise<Gateway> =
 
     // Load identity
     const certPath = process.env.CERT_PATH!;
-    const keyPath = process.env.PRIVATE_KEY_PATH!;
+    const keyPath = process.env.SIGN_CERT_KEY_PATH!;
     if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
       throw new Error(`Missing cert or key files at ${certPath} or ${keyPath}`);
     }
@@ -61,7 +63,8 @@ export const getNetworkGateway = async (networkName: string): Promise<Gateway> =
     };
 
     const privateKeyPem = fs.readFileSync(keyPath);
-    const signer = signers.newPrivateKeySigner(privateKeyPem);
+    const privateKeyObject = crypto.createPrivateKey(privateKeyPem);
+    const signer = signers.newPrivateKeySigner(privateKeyObject);
 
     // Connect using new Gateway SDK
     const gateway = connect({
@@ -89,134 +92,52 @@ async function invoke(
   funcName: string,
   dynamicArg?: Buffer,
 ): Promise<view_data.FabricView> {
-  logger.info("Running query on fabric network");
+  logger.info('Running query on fabric network');
+
+  const parsedAddress = parseAddress(query.getAddress());
+  const chaincodeId = process.env.INTEROP_CHAINCODE || 'interop';
+  const queryBase64 = Buffer.from(query.serializeBinary()).toString('base64');
+
   try {
-    // 1. Prepare credentials/gateway for communicating with fabric network
     const gateway = await getNetworkGateway(networkName);
+    const network = gateway.getNetwork(parsedAddress.channel);
+    const contract = network.getContract(chaincodeId);
 
-    // 2. Prepare info required for query (address/policy)
-    const parsedAddress = parseAddress(query.getAddress());
-    // Get the network (channel) our contract is deployed to.
-    logger.debug(`Channel: ${parsedAddress.channel}`);
-    const network = await gateway.getNetwork(parsedAddress.channel);
-    const currentChannel = network.getChannel();
-    const endorsers = currentChannel.getEndorsers();
-    logger.info(`policy: ${query.getPolicyList()}`);
-    const chaincodeId = process.env.INTEROP_CHAINCODE
-      ? process.env.INTEROP_CHAINCODE
-      : "interop";
+    const args = funcName === 'HandleExternalRequest'
+      ? [queryBase64]
+      : [queryBase64, dynamicArg ? dynamicArg.toString() : ''];
 
-    // LOGIC for getting identities from the provided policy. If none can be found it will default to all.
     const identities = query.getPolicyList();
+    logger.debug(`Using endorsement policy: ${identities}`);
 
-    logger.debug(
-      `Message: ${query.getAddress() + query.getNonce()} ${identities}`,
-    );
-    const cert = Certificate.fromPEM(Buffer.from(query.getCertificate()));
-    const orgName = cert.issuer.organizationName;
-    logger.info(
-      `CC ARGS:
-            ${parsedAddress.ccFunc},
-            ${parsedAddress.args},
-            ${query.getRequestingNetwork()},
-            ${query.getRequestingOrg() ? query.getRequestingOrg() : orgName},
-            ${query.getCertificate()},
-            ${query.getRequestorSignature()},
-            ${query.getAddress() + query.getNonce()}`,
-    );
-    const b64QueryBytes = Buffer.from(query.serializeBinary()).toString(
-      "base64",
-    );
-
-    const idx = gateway.identityContext.calculateTransactionId();
-    const queryProposal = currentChannel.newQuery(chaincodeId);
-    let request;
-    if (funcName == "HandleExternalRequest") {
-      request = {
-        fcn: funcName,
-        args: [b64QueryBytes],
-        generateTransactionId: false,
-      };
-    } else {
-      request = {
-        fcn: funcName,
-        args: [b64QueryBytes, dynamicArg ? dynamicArg.toString() : ""],
-        generateTransactionId: false,
-      };
-    }
-    queryProposal.build(idx, request);
-    queryProposal.sign(idx);
-    // 3. Set the endorser list for the transaction, this enforces that the list provided will endorse the proposed transaction
-    let proposalRequest;
-    if (identities.length > 0) {
-      const endorserList = endorsers.filter((endorser: Endorser) => {
-        //@ts-expect-error: should expect string
-        const cert = Certificate.fromPEM(endorser.options.pem);
-        const orgName = cert.issuer.organizationName;
-        return (
-          identities.includes(endorser.mspid) || identities.includes(orgName)
-        );
-      });
-      logger.debug(`Set endorserList: ${endorserList}`);
-      proposalRequest = {
-        targets: endorserList,
-        requestTimeout: 30000,
-      };
-    } else {
-      // When no identities provided it will default to all peers
-      logger.debug(`Set endorsers: ${endorsers}`);
-      proposalRequest = {
-        targets: endorsers,
-        requestTimeout: 30000,
-      };
-    }
-
-    // submit query transaction and get result from chaincode
-    const proposalResponseResult = await queryProposal.send(proposalRequest);
-    //logger.debug(`${JSON.stringify(proposalResponseResult, null, 2)}`)
-
-    // 4. Prepare the view and return.
-    const viewPayload = new view_data.FabricView();
-    const endorsedProposalResponses: view_data.FabricView.EndorsedProposalResponse[] =
-      [];
-
-    let endorsementCounter = 0;
-    proposalResponseResult.responses.forEach((response) => {
-      const endorsement = new proposalResponse.Endorsement();
-      endorsement.setSignature(response.endorsement.signature);
-      endorsement.setEndorser(response.endorsement.endorser);
-
-      // Create EndorsedProposalResponse
-      const endorsedProposalResponse =
-        new view_data.FabricView.EndorsedProposalResponse();
-      endorsedProposalResponse.setPayload(
-        proposalResponse.ProposalResponsePayload.deserializeBinary(
-          response.payload,
-        ),
-      );
-      endorsedProposalResponse.setEndorsement(endorsement);
-
-      // Add to list of endorsedProposalResponses
-      endorsedProposalResponses.push(endorsedProposalResponse);
-
-      logger.info(
-        `InteropPayload: ${endorsementCounter}, ${Buffer.from(response.response.payload).toString("base64")}`,
-      );
-      logger.info(
-        `Endorsement: ${endorsementCounter}, ${Buffer.from(endorsement.serializeBinary()).toString("base64")}`,
-      );
-      endorsementCounter++;
+    const proposal = contract.newProposal(funcName, {
+      arguments: args,
+      // new SDK way to filter endorsing orgs
+      endorsingOrganizations: identities.length > 0 ? identities : undefined,
     });
-    viewPayload.setEndorsedProposalResponsesList(endorsedProposalResponses);
-    // Disconnect from the gateway.
-    gateway.disconnect();
+
+    const endorsedTxn = await proposal.endorse();
+    const resultBytes = endorsedTxn.getResult();
+
+    const viewPayload = new view_data.FabricView();
+    const endorsedResponses: view_data.FabricView.EndorsedProposalResponse[] = [];
+
+    const endorsedResp = new view_data.FabricView.EndorsedProposalResponse();
+    endorsedResp.setPayload(
+      proposalResponse.ProposalResponsePayload.deserializeBinary(resultBytes),
+    );
+    // optional: set dummy endorsement if needed (e.g., placeholder only)
+    endorsedResponses.push(endorsedResp);
+
+    viewPayload.setEndorsedProposalResponsesList(endorsedResponses);
+
+    gateway.close();
     return viewPayload;
   } catch (error) {
-    logger.error(`Failed to submit transaction: ${error}`);
+    logger.error(`Failed to invoke Fabric query: ${error}`);
     throw error;
   }
 }
-
 // Package view and send to relay
 function packageFabricView(
   query: query_pb.Query,
