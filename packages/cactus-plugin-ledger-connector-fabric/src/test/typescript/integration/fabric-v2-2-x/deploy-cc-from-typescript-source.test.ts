@@ -45,7 +45,7 @@ import { PluginKeychainMemory } from "@hyperledger/cactus-plugin-keychain-memory
 import { Configuration } from "@hyperledger/cactus-core-api";
 
 const testCase = "deploys Fabric 2.x contract from typescript source";
-const logLevel: LogLevelDesc = "INFO";
+const logLevel: LogLevelDesc = "DEBUG";
 
 // Logger setup
 const log: Logger = LoggerProvider.getOrCreate({
@@ -70,8 +70,8 @@ describe("Deploy CC from typescript source test", () => {
     ledger = new FabricTestLedgerV1({
       emitContainerLogs: true,
       publishAllPorts: true,
-      imageName: DEFAULT_FABRIC_2_AIO_IMAGE_NAME,
-      imageVersion: FABRIC_25_LTS_AIO_IMAGE_VERSION,
+      imageName: "kubaya/fabricaio-arm",
+      imageVersion: "arm123123123",
       envVars: new Map([["FABRIC_VERSION", FABRIC_25_LTS_AIO_FABRIC_VERSION]]),
       logLevel,
     });
