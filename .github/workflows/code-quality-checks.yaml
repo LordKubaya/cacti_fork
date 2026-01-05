@@ -72,6 +72,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: CI environment clean-up
+        run: ./tools/ci-env-clean-up.sh
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
