@@ -13,6 +13,9 @@ module.exports = {
   testTimeout: 60 * 60 * 1000,
   moduleNameMapper: {
     "^(.+)/(.+)_pb\\.js$": "$1/$2_pb",
+    "^request-promise-native$":
+      "<rootDir>/tools/test/__mocks__/request-promise-native.js",
+    "^request-promise$": "<rootDir>/tools/test/__mocks__/request-promise.js",
   },
   testMatch: [
     `**/cactus-*/src/test/typescript/{unit,integration,benchmark}/**/*.test.ts`,

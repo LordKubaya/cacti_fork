@@ -86,6 +86,7 @@ import {
   GetHealthcheckV1Endpoint,
   IGetHealthcheckV1EndpointOptions,
 } from "./web-services/get-healthcheck-v1-endpoint";
+import { createRequire } from "node:module";
 
 export interface IApiServerConstructorOptions {
   readonly pluginManagerOptions?: { pluginsPath: string };
@@ -419,14 +420,16 @@ export class ApiServer {
         );
       }
 
-      const packagePath = path.join(
-        this.pluginsPath,
-        options.instanceId,
-        "node_modules",
-        packageName,
-      );
-      this.log.debug("Package path: %o", packagePath);
+      // Create a resolver rooted at the plugin instance
+      const instancePath = path.join(this.pluginsPath, options.instanceId);
+      const req = createRequire(path.join(instancePath, "package.json"));
 
+      // Resolve the package root
+      const packagePath = path.dirname(
+        req.resolve(`${packageName}/package.json`),
+      );
+
+      this.log.debug("Package path: %o", packagePath);
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const pluginPackage = require(/* webpackIgnore: true */ packagePath);
       const createPluginFactory =
